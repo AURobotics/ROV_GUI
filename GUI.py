@@ -1,5 +1,5 @@
 import sys, cv2, random
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QScrollArea
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 
@@ -180,6 +180,8 @@ class MainWindow (QMainWindow) :
         self.showMaximized ()
         self.setWindowTitle ("AU Robotics ROV GUI")
 
+        self.state = self.windowState ()
+
         self.initUI ()
 
         self.timer = QTimer ()
@@ -197,8 +199,48 @@ class MainWindow (QMainWindow) :
         self.orientationsWidget = OrientationsWidget (self)
         self.controllerWidget = QWidget ()
         self.thrustersWidget = ThrustersWidget (self)
-        self.tasksWidget = QWidget ()
-        self.scriptsWidget = QWidget ()
+        self.tasksWidget = QScrollArea ()
+        self.scriptsWidget = QScrollArea ()
+
+        tasksScrollLayout = QVBoxLayout ()
+        tasksScrollLayout.addWidget (QLabel ("Task 1"))
+        tasksScrollLayout.addWidget (QLabel ("Task 2"))
+        tasksScrollLayout.addWidget (QLabel ("Task 3"))
+        tasksScrollLayout.addWidget (QLabel ("Task 4"))
+        tasksScrollLayout.addWidget (QLabel ("Task 5"))
+        tasksScrollLayout.addWidget (QLabel ("Task 6"))
+        tasksScrollLayout.addWidget (QLabel ("Task 7"))
+        tasksScrollLayout.addWidget (QLabel ("Task 8"))
+        tasksScrollLayout.addWidget (QLabel ("Task 9"))
+        tasksScrollLayout.addWidget (QLabel ("Task 10"))
+        tasksScrollLayout.addWidget (QLabel ("Task 11"))
+        tasksScrollLayout.addWidget (QLabel ("Task 12"))
+        tasksScrollLayout.addWidget (QLabel ("Task 13"))
+        tasksScrollLayout.addWidget (QLabel ("Task 14"))
+        self.tasksWidget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.tasksWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.tasksWidget.setWidgetResizable(False)
+        self.tasksWidget.setWidget (QWidget (self.tasksWidget).setLayout (tasksScrollLayout))
+
+        scriptsScrollLayout = QVBoxLayout ()
+        scriptsScrollLayout.addWidget (QLabel ("Script 1"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 2"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 3"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 4"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 5"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 6"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 7"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 8"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 9"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 10"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 11"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 12"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 13"))
+        scriptsScrollLayout.addWidget (QLabel ("Script 14"))
+        self.scriptsWidget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scriptsWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scriptsWidget.setWidgetResizable(False)
+        self.scriptsWidget.setWidget (QWidget (self.scriptsWidget).setLayout (scriptsScrollLayout))
         
         grid = QGridLayout ()
 
@@ -228,6 +270,10 @@ class MainWindow (QMainWindow) :
         centralWidget.setLayout (grid)
 
     def updateFrame (self) :
+        if (self.state != self.windowState ()) :
+            self.initUI ()
+            self.state = self.windowState ()
+
         self.leftCameraWidget.update ()
         self.middleCameraWidget.update ()
         self.rightCameraWidget.update ()
