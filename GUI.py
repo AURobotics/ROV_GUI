@@ -1,5 +1,5 @@
 import sys, cv2, random
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QScrollArea
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QCheckBox
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 
@@ -168,11 +168,6 @@ class ThrustersWidget (QWidget) :
         self.set_colors ()
         self.paintEvent (None)
 
-
-        
-
-
-
 class MainWindow (QMainWindow) :
     def __init__(self) :
         super().__init__()
@@ -199,28 +194,10 @@ class MainWindow (QMainWindow) :
         self.orientationsWidget = OrientationsWidget (self)
         self.controllerWidget = QWidget ()
         self.thrustersWidget = ThrustersWidget (self)
-        self.tasksWidget = QScrollArea ()
+        self.tasksWidget = QScrollArea (self)
         self.scriptsWidget = QScrollArea ()
 
-        tasksScrollLayout = QVBoxLayout ()
-        tasksScrollLayout.addWidget (QLabel ("Task 1"))
-        tasksScrollLayout.addWidget (QLabel ("Task 2"))
-        tasksScrollLayout.addWidget (QLabel ("Task 3"))
-        tasksScrollLayout.addWidget (QLabel ("Task 4"))
-        tasksScrollLayout.addWidget (QLabel ("Task 5"))
-        tasksScrollLayout.addWidget (QLabel ("Task 6"))
-        tasksScrollLayout.addWidget (QLabel ("Task 7"))
-        tasksScrollLayout.addWidget (QLabel ("Task 8"))
-        tasksScrollLayout.addWidget (QLabel ("Task 9"))
-        tasksScrollLayout.addWidget (QLabel ("Task 10"))
-        tasksScrollLayout.addWidget (QLabel ("Task 11"))
-        tasksScrollLayout.addWidget (QLabel ("Task 12"))
-        tasksScrollLayout.addWidget (QLabel ("Task 13"))
-        tasksScrollLayout.addWidget (QLabel ("Task 14"))
-        self.tasksWidget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.tasksWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.tasksWidget.setWidgetResizable(False)
-        self.tasksWidget.setWidget (QWidget (self.tasksWidget).setLayout (tasksScrollLayout))
+        self.initTasks ()
 
         scriptsScrollLayout = QVBoxLayout ()
         scriptsScrollLayout.addWidget (QLabel ("Script 1"))
@@ -278,6 +255,27 @@ class MainWindow (QMainWindow) :
         self.middleCameraWidget.update ()
         self.rightCameraWidget.update ()
         self.orientationsWidget.update ()
+
+    def initTasks (self):
+        tasksContainer = QWidget ()
+        tasksScrollLayout = QVBoxLayout (tasksContainer)
+
+        tasksScrollLayout.addWidget (QCheckBox ("Task 1"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 2"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 3"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 4"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 5"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 6"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 7"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 8"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 9"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 10"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 11"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 12"))
+        tasksScrollLayout.addWidget (QCheckBox ("Task 13"))
+
+        self.tasksWidget.setWidget(tasksContainer)
+        
 
 
 if __name__ == "__main__" :
