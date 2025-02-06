@@ -1,5 +1,5 @@
 import sys, cv2, random
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QCheckBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QCheckBox, QPushButton
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 
@@ -168,6 +168,25 @@ class ThrustersWidget (QWidget) :
         self.set_colors ()
         self.paintEvent (None)
 
+class ScriptWidget (QWidget) :
+    def __init__(self, desc):
+        super().__init__()
+
+        self.desc = desc
+
+        hbox = QHBoxLayout (self)
+
+        hbox.addWidget (QLabel (self.desc))
+
+        self.button = QPushButton ("Run", self)
+        self.button.clicked.connect (self.runScript)
+
+        hbox.addWidget (self.button)
+
+    def runScript (self) :
+        print (self.desc)
+
+
 class MainWindow (QMainWindow) :
     def __init__(self) :
         super().__init__()
@@ -195,30 +214,11 @@ class MainWindow (QMainWindow) :
         self.controllerWidget = QWidget ()
         self.thrustersWidget = ThrustersWidget (self)
         self.tasksWidget = QScrollArea (self)
-        self.scriptsWidget = QScrollArea ()
+        self.scriptsWidget = QScrollArea (self)
 
         self.initTasks ()
+        self.initScripts ()
 
-        scriptsScrollLayout = QVBoxLayout ()
-        scriptsScrollLayout.addWidget (QLabel ("Script 1"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 2"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 3"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 4"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 5"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 6"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 7"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 8"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 9"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 10"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 11"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 12"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 13"))
-        scriptsScrollLayout.addWidget (QLabel ("Script 14"))
-        self.scriptsWidget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.scriptsWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scriptsWidget.setWidgetResizable(False)
-        self.scriptsWidget.setWidget (QWidget (self.scriptsWidget).setLayout (scriptsScrollLayout))
-        
         grid = QGridLayout ()
 
         grid.setColumnMinimumWidth(0, self.width() // 3)
@@ -275,6 +275,26 @@ class MainWindow (QMainWindow) :
         tasksScrollLayout.addWidget (QCheckBox ("Task 13"))
 
         self.tasksWidget.setWidget(tasksContainer)
+
+    def initScripts (self) :
+        scriptsContainer = QWidget ()
+        scriptsScrollLayout = QVBoxLayout (scriptsContainer)
+
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 1"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 2"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 3"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 4"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 5"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 6"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 7"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 8"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 9"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 10"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 11"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 12"))
+        scriptsScrollLayout.addWidget (ScriptWidget ("Script 13"))
+
+        self.scriptsWidget.setWidget(scriptsContainer)
         
 
 
