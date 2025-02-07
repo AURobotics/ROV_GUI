@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLay
 from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 
-class CameraWidget (QLabel) :
+class CameraWidget(QLabel):
     def __init__(self, parent, cam, w, h):
         super().__init__(parent)
 
@@ -12,22 +12,20 @@ class CameraWidget (QLabel) :
         self.cam = cam
         self.w = w
         self.h = h
+        self.cap = cv2.VideoCapture(self.cam)
 
-        self.update ()
 
-    def update (self) :
-        # cap = cv2.VideoCapture(self.cam)
-        # if cap.isOpened () :
-        #     ret, frame = cap.read ()
-        #     if ret :
-        #         frame = cv2.resize (frame, (self.w, self.h))
-        #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        self.update()
 
-        #         q_image = QImage (frame.data, self.w, self.h, frame.strides[0], QImage.Format_RGB888)
+    def update(self):
+        if self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if ret:
+                frame = cv2.resize(frame, (self.w, self.h))
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            q_image = QImage(frame.data, self.w, self.h, frame.strides[0], QImage.Format.Format_RGB888)
+            self.setPixmap(QPixmap.fromImage(q_image))
 
-        #         self.setPixmap (QPixmap.fromImage(q_image))
-        # cap.release ()
-        self.setText (str (self.cam))
 
 class OrientationsWidget (QWidget) : 
     def __init__(self, parent):
