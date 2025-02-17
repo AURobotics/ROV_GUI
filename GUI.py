@@ -1,7 +1,9 @@
 import sys, cv2, random
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, QScrollArea, QCheckBox, QPushButton
-from PyQt5.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, \
+    QScrollArea, QCheckBox, QPushButton
+from PySide6.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
+from PySide6.QtCore import QThread, Signal, QTimer, Qt
+
 
 class CameraWidget(QLabel):
     def __init__(self, parent, cam, w, h):
@@ -13,7 +15,6 @@ class CameraWidget(QLabel):
         self.w = w
         self.h = h
         self.cap = cv2.VideoCapture(self.cam)
-
 
         self.update()
 
@@ -27,47 +28,48 @@ class CameraWidget(QLabel):
             self.setPixmap(QPixmap.fromImage(q_image))
 
 
-class OrientationsWidget (QWidget) : 
+class OrientationsWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
 
-        self.setMinimumSize (parent.width () // 3, parent.height () // 2)
+        self.setMinimumSize(parent.width() // 3, parent.height() // 2)
 
-        layout = QVBoxLayout ()
+        layout = QVBoxLayout()
 
-        self.setLayout (layout)
+        self.setLayout(layout)
 
-        self.depthLabel = QLabel (self)
-        self.yawLabel = QLabel (self)
-        self.pitchLabel = QLabel (self)
-        self.rollLabel = QLabel (self)
+        self.depthLabel = QLabel(self)
+        self.yawLabel = QLabel(self)
+        self.pitchLabel = QLabel(self)
+        self.rollLabel = QLabel(self)
 
-        layout.addWidget (self.depthLabel)
-        layout.addWidget (self.yawLabel)
-        layout.addWidget (self.pitchLabel)
-        layout.addWidget (self.rollLabel)
+        layout.addWidget(self.depthLabel)
+        layout.addWidget(self.yawLabel)
+        layout.addWidget(self.pitchLabel)
+        layout.addWidget(self.rollLabel)
 
-        self.update ()
+        self.update()
 
-    def update (self) :
+    def update(self):
         # TODO: Change the randint to reading from RPi/ESP32 using PySerial
-        depthReading = random.randint (0, 10)
-        yawReading = random.randint (0, 10)
-        pitchReading = random.randint (0, 10)
-        rollReading = random.randint (0, 10)
+        depthReading = random.randint(0, 10)
+        yawReading = random.randint(0, 10)
+        pitchReading = random.randint(0, 10)
+        rollReading = random.randint(0, 10)
 
-        self.depthLabel.setText ("Depth: " + str (depthReading))
-        self.yawLabel.setText ("Yaw: " + str (yawReading))
-        self.pitchLabel.setText ("Pitch: " + str (pitchReading))
-        self.rollLabel.setText ("Roll: " + str (rollReading))
+        self.depthLabel.setText("Depth: " + str(depthReading))
+        self.yawLabel.setText("Yaw: " + str(yawReading))
+        self.pitchLabel.setText("Pitch: " + str(pitchReading))
+        self.rollLabel.setText("Roll: " + str(rollReading))
 
-class ThrustersWidget (QWidget) :
+
+class ThrustersWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
 
-        self.setMinimumSize (parent.width () // 3, parent.height () // 4)
-        
+        self.setMinimumSize(parent.width() // 3, parent.height() // 4)
+
         # Default colors
         self.square_color = QColor(0, 0, 0)  # Black for center square
 
@@ -83,18 +85,18 @@ class ThrustersWidget (QWidget) :
             QColor(0, 255, 0),  # Front-left
             QColor(0, 255, 0),  # Front-right
             QColor(0, 255, 0),  # Back-left
-            QColor(0, 255, 0)   # Back-right
+            QColor(0, 255, 0)  # Back-right
         ]
 
     def set_colors(self):
         """Allows changing colors dynamically"""
 
-        frontRightSpeed = random.randint (0, 255)
-        backRightSpeed = random.randint (0, 255)
-        frontLeftSpeed = random.randint (0, 255)
-        backLeftSpeed = random.randint (0, 255)
-        upFrontSpeed = random.randint (0, 255)
-        upBackSpeed = random.randint (0, 255)
+        frontRightSpeed = random.randint(0, 255)
+        backRightSpeed = random.randint(0, 255)
+        frontLeftSpeed = random.randint(0, 255)
+        backLeftSpeed = random.randint(0, 255)
+        upFrontSpeed = random.randint(0, 255)
+        upBackSpeed = random.randint(0, 255)
 
         self.square_color = QColor(0, 0, 0)
         self.circle_colors = [
@@ -108,12 +110,12 @@ class ThrustersWidget (QWidget) :
             QColor(frontLeftSpeed, 255 - frontLeftSpeed, 0),  # Front-left
             QColor(frontRightSpeed, 255 - frontRightSpeed, 0),  # Front-right
             QColor(backLeftSpeed, 255 - backLeftSpeed, 0),  # Back-left
-            QColor(backRightSpeed, 255 - backRightSpeed, 0)   # Back-right
+            QColor(backRightSpeed, 255 - backRightSpeed, 0)  # Back-right
         ]
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Get parent size constraints
         max_width = self.parent.width() // 3
@@ -127,7 +129,7 @@ class ThrustersWidget (QWidget) :
 
         # Draw the black center square
         painter.setPen(QPen(self.square_color, 3))
-        painter.setBrush(QBrush(Qt.NoBrush))
+        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         painter.drawRect(square_x, square_y, square_size, square_size)
 
         # Circles' and Rotated Squares' Positions
@@ -162,62 +164,62 @@ class ThrustersWidget (QWidget) :
             painter.drawRect(-circle_radius, -circle_radius, circle_radius * 2, circle_radius * 2)
             painter.restore()
 
-    def update (self) :
-        self.set_colors ()
-        self.paintEvent (None)
+    def update(self):
+        self.set_colors()
+        self.paintEvent(None)
 
-class ScriptWidget (QWidget) :
+
+class ScriptWidget(QWidget):
     def __init__(self, desc):
         super().__init__()
 
         self.desc = desc
 
-        hbox = QHBoxLayout (self)
+        hbox = QHBoxLayout(self)
 
-        hbox.addWidget (QLabel (self.desc))
+        hbox.addWidget(QLabel(self.desc))
 
-        self.button = QPushButton ("Run", self)
-        self.button.clicked.connect (self.runScript)
+        self.button = QPushButton("Run", self)
+        self.button.clicked.connect(self.runScript)
 
-        hbox.addWidget (self.button)
+        hbox.addWidget(self.button)
 
-    def runScript (self) :
-        print (self.desc)
+    def runScript(self):
+        print(self.desc)
 
 
-class MainWindow (QMainWindow) :
-    def __init__(self) :
+class MainWindow(QMainWindow):
+    def __init__(self):
         super().__init__()
 
-        self.showMaximized ()
-        self.setWindowTitle ("AU Robotics ROV GUI")
+        self.showMaximized()
+        self.setWindowTitle("AU Robotics ROV GUI")
 
-        self.state = self.windowState ()
+        self.state = self.windowState()
 
-        self.initUI ()
+        self.initUI()
 
-        self.timer = QTimer ()
+        self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
         self.timer.start(30)
 
-    def initUI (self) :
-        
-        centralWidget = QWidget ()
-        self.setCentralWidget (centralWidget)
+    def initUI(self):
+        centralWidget = QWidget()
+        self.setCentralWidget(centralWidget)
 
-        self.leftCameraWidget = CameraWidget (self, 0, self.width () // 3, self.height () // 4)
-        self.middleCameraWidget = CameraWidget (self, 1, self.width () // 3, self.height () // 4)
-        self.rightCameraWidget = CameraWidget (self, 2, self.width () // 3, self.height () // 4)
-        self.orientationsWidget = OrientationsWidget (self)
-        self.controllerWidget = QWidget ()
-        self.thrustersWidget = ThrustersWidget (self)
-        self.tasksWidget = QScrollArea (self)
-        self.scriptsWidget = QScrollArea (self)
+        self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
+        self.middleCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
+        self.rightCameraWidget = CameraWidget(self, 2, self.width() // 3, self.height() // 4)
+        self.orientationsWidget = OrientationsWidget(self)
+        self.controllerWidget = QWidget()
+        self.thrustersWidget = ThrustersWidget(self)
+        self.tasksWidget = QScrollArea(self)
+        self.scriptsWidget = QScrollArea(self)
 
-        self.initTasks ()
-        self.initScripts ()
+        self.initTasks()
+        self.initScripts()
 
-        grid = QGridLayout ()
+        grid = QGridLayout()
 
         grid.setColumnMinimumWidth(0, self.width() // 3)
         grid.setColumnMinimumWidth(1, self.width() // 3)
@@ -228,76 +230,73 @@ class MainWindow (QMainWindow) :
         grid.setRowMinimumHeight(2, self.height() // 4)
         grid.setRowMinimumHeight(3, self.height() // 4)
 
+        grid.addWidget(self.leftCameraWidget, 0, 0, 2, 1)
+        grid.addWidget(self.middleCameraWidget, 0, 1, 2, 1)
+        grid.addWidget(self.rightCameraWidget, 0, 2, 2, 1)
 
+        grid.addWidget(self.orientationsWidget, 2, 0, 2, 1)
 
-        grid.addWidget (self.leftCameraWidget, 0, 0, 2, 1)
-        grid.addWidget (self.middleCameraWidget, 0, 1, 2, 1)
-        grid.addWidget (self.rightCameraWidget, 0, 2, 2, 1)
+        grid.addWidget(self.tasksWidget, 2, 1, 1, 1)
+        grid.addWidget(self.controllerWidget, 3, 1, 1, 1)
 
-        grid.addWidget (self.orientationsWidget, 2, 0, 2, 1)
+        grid.addWidget(self.scriptsWidget, 2, 2, 1, 1)
+        grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
-        grid.addWidget (self.tasksWidget, 2, 1, 1, 1)
-        grid.addWidget (self.controllerWidget, 3, 1, 1, 1)
+        centralWidget.setLayout(grid)
 
-        grid.addWidget (self.scriptsWidget, 2, 2, 1, 1)
-        grid.addWidget (self.thrustersWidget, 3, 2, 1, 1)
+    def updateFrame(self):
+        if (self.state != self.windowState()):
+            self.initUI()
+            self.state = self.windowState()
 
-        centralWidget.setLayout (grid)
+        self.leftCameraWidget.update()
+        self.middleCameraWidget.update()
+        self.rightCameraWidget.update()
+        self.orientationsWidget.update()
 
-    def updateFrame (self) :
-        if (self.state != self.windowState ()) :
-            self.initUI ()
-            self.state = self.windowState ()
+    def initTasks(self):
+        tasksContainer = QWidget()
+        tasksScrollLayout = QVBoxLayout(tasksContainer)
 
-        self.leftCameraWidget.update ()
-        self.middleCameraWidget.update ()
-        self.rightCameraWidget.update ()
-        self.orientationsWidget.update ()
-
-    def initTasks (self):
-        tasksContainer = QWidget ()
-        tasksScrollLayout = QVBoxLayout (tasksContainer)
-
-        tasksScrollLayout.addWidget (QCheckBox ("Task 1"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 2"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 3"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 4"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 5"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 6"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 7"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 8"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 9"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 10"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 11"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 12"))
-        tasksScrollLayout.addWidget (QCheckBox ("Task 13"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 1"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 2"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 3"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 4"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 5"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 6"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 7"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 8"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 9"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 10"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 11"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 12"))
+        tasksScrollLayout.addWidget(QCheckBox("Task 13"))
 
         self.tasksWidget.setWidget(tasksContainer)
 
-    def initScripts (self) :
-        scriptsContainer = QWidget ()
-        scriptsScrollLayout = QVBoxLayout (scriptsContainer)
+    def initScripts(self):
+        scriptsContainer = QWidget()
+        scriptsScrollLayout = QVBoxLayout(scriptsContainer)
 
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 1"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 2"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 3"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 4"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 5"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 6"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 7"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 8"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 9"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 10"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 11"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 12"))
-        scriptsScrollLayout.addWidget (ScriptWidget ("Script 13"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 1"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 2"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 3"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 4"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 5"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 6"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 7"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 8"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 9"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 10"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 11"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 12"))
+        scriptsScrollLayout.addWidget(ScriptWidget("Script 13"))
 
         self.scriptsWidget.setWidget(scriptsContainer)
-        
 
 
-if __name__ == "__main__" :
-    app = QApplication (sys.argv)
-    mainWindow = MainWindow ()
-    mainWindow.show ()
-    sys.exit (app.exec_ ())
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    mainWindow = MainWindow()
+    mainWindow.show()
+    sys.exit(app.exec_())
