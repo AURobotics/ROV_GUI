@@ -1,8 +1,36 @@
 import sys, cv2, random
-from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QVBoxLayout, QHBoxLayout, \
-    QScrollArea, QCheckBox, QPushButton
-from PySide6.QtGui import QImage, QPixmap, QFont, QPainter, QColor, QPen, QBrush
-from PySide6.QtCore import QThread, Signal, QTimer, Qt
+import struct
+import pygame.joystick
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QLabel,
+    QWidget,
+    QGridLayout,
+    QVBoxLayout,
+    QHBoxLayout,
+    QScrollArea,
+    QCheckBox,
+    QPushButton
+)
+from PySide6.QtGui import (
+    QImage,
+    QPixmap,
+    QFont,
+    QPainter,
+    QColor,
+    QPen,
+    QBrush
+)
+from PySide6.QtCore import (
+    QThread,
+    Signal,
+    QTimer,
+    Qt
+)
+
+import pygame
+import serial
 
 
 class CameraWidget(QLabel):
@@ -204,8 +232,12 @@ class MainWindow(QMainWindow):
         self.timer.start(30)
 
     def initUI(self):
-        centralWidget = QWidget()
-        self.setCentralWidget(centralWidget)
+        pygame.init()
+        self.ds4 = pygame.joystick.Joystick(0)
+        self.gamepad = {'LStickY': 0, 'LStickX': 0, 'RStickY': 0, 'RStickX': 0, 'Cross': 0, 'Circle': 0, 'Square': 0, 'Triangle': 0, 'L1': 0, 'R1': 0, 'L2': 0, 'R2': 0}
+        self.ser = serial.Serial('COM10')
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
         self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
         self.middleCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
@@ -242,17 +274,20 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.scriptsWidget, 2, 2, 1, 1)
         grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
-        centralWidget.setLayout(grid)
+        central_widget.setLayout(grid)
 
     def updateFrame(self):
         if (self.state != self.windowState()):
             self.initUI()
             self.state = self.windowState()
-
         self.leftCameraWidget.update()
         self.middleCameraWidget.update()
         self.rightCameraWidget.update()
         self.orientationsWidget.update()
+        self.ser.write(struct.pack("12B", *))
+        if self.ser.in_waiting:
+            print(self.ser.readline())
+        
 
     def initTasks(self):
         tasksContainer = QWidget()
@@ -299,4 +334,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     mainWindow = MainWindow()
     mainWindow.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
