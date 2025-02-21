@@ -1,5 +1,7 @@
+import time
 from collections.abc import Callable
 
+from threading import Thread
 import serial
 import struct
 import pygame
@@ -7,8 +9,8 @@ import pygame
 class Controller:
     """Manages gamepad selection, gamepad bindings and communication over a chosen serial port"""
 
-    _gamepads:               list[pygame.joystick.JoystickType] # empty list if none connected
-    _gamepad:                pygame.joystick.JoystickType | None # chosen gamepad
+    _gamepads:               list[pygame.joystick.JoystickType]
+    _gamepad:                pygame.joystick.JoystickType | None
     _gamepad_guid:           str | None
     _serial:                 serial.Serial | None
     _emit_connection_change: Callable[[], None]
@@ -20,16 +22,18 @@ class Controller:
     def __init__(self, _serial = None, _connection_callback = None) -> None:
         pygame.init()
         self._emit_connection_change = _connection_callback if _connection_callback is not None else self._no_op
+        self._gamepad = None
+        self._gamepad_guid = None
         self._refresh_gamepads()
-        if self._gamepads is None:
-            return
-        self._gamepad = self._gamepads[0] # default selection
-        self._gamepad_guid = self._gamepad.get_guid()
         self._serial = _serial
+        self._handler_thread = Thread(target=self._handler_loop, daemon=True)
+        self._handler_thread.start()
 
     def _refresh_gamepads(self) -> None:
         gamepad_count = pygame.joystick.get_count()
         if gamepad_count == 0:
+            self._gamepad = None
+            self._gamepad_guid = None
             self._gamepads = []
             return
         self._gamepads = [pygame.joystick.Joystick(i) for i in range(gamepad_count)]
@@ -38,6 +42,7 @@ class Controller:
                 self._gamepad = gamepad
                 return
         self._gamepad = self._gamepads[0]
+        self._gamepad_guid = self._gamepad.get_guid()
 
     @property
     def gamepads(self) -> list[str]:
@@ -46,7 +51,8 @@ class Controller:
 
     @property
     def gamepad(self) -> str:
-        return f'{self._gamepad.get_id()}: {self._gamepad.get_name()}'
+        if self._gamepad is not None:
+            return f'{self._gamepad.get_id()}: {self._gamepad.get_name()}'
 
     @gamepad.setter
     def gamepad(self, index: int) -> None:
@@ -64,18 +70,17 @@ class Controller:
         while True:
 
             for event in pygame.event.get():
-                match event:
-                    case pygame.JOYDEVICEADDED:
-                        self._refresh_gamepads()
-                        self._emit_connection_change()
-                    case pygame.JOYDEVICEREMOVED:
-                        self._refresh_gamepads()
-                        self._emit_connection_change()
-
-            if self._serial is None:
+                if event.type == pygame.JOYDEVICEADDED:
+                    self._refresh_gamepads()
+                    self._emit_connection_change()
+                if event.type == pygame.JOYDEVICEREMOVED:
+                    self._refresh_gamepads()
+                    self._emit_connection_change()
+            if self._gamepad is None or self._serial is None:
                 continue
             if self._serial.in_waiting:
                 print(self._serial.readline())
+            time.sleep(1)
             payload = [int(254 * self._gamepad.get_button(x)) for x in range(8)]
             payload.insert(0, 255)
             payload.append(0b10101010)  # directions
@@ -86,4 +91,5 @@ class Controller:
 
 
     def __del__(self) -> None:
+        self._handler_thread.join()
         pygame.quit()

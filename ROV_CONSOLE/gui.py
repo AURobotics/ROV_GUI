@@ -1,5 +1,9 @@
 import sys, cv2, random
 import struct
+from .controlling import Controller
+import threading
+
+from PyQt5.QtWidgets import QMenu
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -10,7 +14,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
     QCheckBox,
-    QPushButton
+    QPushButton,
+    QMenuBar
 )
 from PySide6.QtGui import (
     QImage,
@@ -214,25 +219,6 @@ class ScriptWidget(QWidget):
     def runScript(self):
         print(self.desc)
 
-class ControllerSelectionWidget(QWidget):
-    def __init__(self, desc):
-        super().__init__()
-
-        self.desc = desc
-
-        hbox = QHBoxLayout(self)
-
-        hbox.addWidget(QLabel(self.desc))
-
-        self.button = QPushButton("Run", self)
-        self.button.clicked.connect(self.runScript)
-
-        hbox.addWidget(self.button)
-
-    def runScript(self):
-        print(self.desc)
-
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -244,6 +230,8 @@ class MainWindow(QMainWindow):
         self.state = self.windowState()
 
         self.initUI()
+        ser = serial.serial_for_url('rfc2217://localhost:4000')
+        self.controller = Controller(ser)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
@@ -252,7 +240,6 @@ class MainWindow(QMainWindow):
     def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-
         self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
         self.middleCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
         self.rightCameraWidget = CameraWidget(self, 2, self.width() // 3, self.height() // 4)
