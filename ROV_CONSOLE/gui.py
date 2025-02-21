@@ -1,6 +1,5 @@
 import sys, cv2, random
 import struct
-import pygame.joystick
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -215,6 +214,25 @@ class ScriptWidget(QWidget):
     def runScript(self):
         print(self.desc)
 
+class ControllerSelectionWidget(QWidget):
+    def __init__(self, desc):
+        super().__init__()
+
+        self.desc = desc
+
+        hbox = QHBoxLayout(self)
+
+        hbox.addWidget(QLabel(self.desc))
+
+        self.button = QPushButton("Run", self)
+        self.button.clicked.connect(self.runScript)
+
+        hbox.addWidget(self.button)
+
+    def runScript(self):
+        print(self.desc)
+
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -232,10 +250,6 @@ class MainWindow(QMainWindow):
         self.timer.start(30)
 
     def initUI(self):
-        pygame.init()
-        self.ds4 = pygame.joystick.Joystick(0)
-        self.gamepad = {'LStickY': 0, 'LStickX': 0, 'RStickY': 0, 'RStickX': 0, 'Cross': 0, 'Circle': 0, 'Square': 0, 'Triangle': 0, 'L1': 0, 'R1': 0, 'L2': 0, 'R2': 0}
-        self.ser = serial.Serial('COM10')
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -278,15 +292,11 @@ class MainWindow(QMainWindow):
 
     def updateFrame(self):
         if (self.state != self.windowState()):
-            self.initUI()
             self.state = self.windowState()
         self.leftCameraWidget.update()
         self.middleCameraWidget.update()
         self.rightCameraWidget.update()
         self.orientationsWidget.update()
-        self.ser.write(struct.pack("12B", *))
-        if self.ser.in_waiting:
-            print(self.ser.readline())
         
 
     def initTasks(self):
