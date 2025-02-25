@@ -88,11 +88,17 @@ class Controller:
             # RStick - Axis 3 (Vertical): Tilt up or down
             # L2 - Axis 4 (+1 then /2): descend
             # R2 - Axis 5 (+1 then / 2): climb
-            payload = [abs(int(254 * self._gamepad.get_axis(x))) for x in range(4)]
+            # Climb total value: (R2 + 1) / 2 - (L2 + 1) / 2
+            signed_payload = [int(254 * self._gamepad.get_axis(x)) for x in range(4)] # all except L2 and R2
             climb = int(254 * (((self._gamepad.get_axis(4) + 1) / 2) - ((self._gamepad.get_axis(5) + 1) / 2)))
-            abs_climb = abs(climb)
-            payload.append(abs_climb)
-            payload.append(0b10101010)  # directions
+            signed_payload.append(climb)
+            thruster_payload = [abs(b) for b in signed_payload]
+            sign_byte = 0
+            for i, byte in enumerate(signed_payload):
+                if byte < 0:
+                    sign_byte |= 1 << i
+            payload = thruster_payload
+            payload.append(sign_byte)
             payload.append(0b10101010)  # leds
             payload.append(xor(payload[:7]))
             payload.append(255) # Terminator byte
