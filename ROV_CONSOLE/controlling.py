@@ -80,13 +80,24 @@ class Controller:
                 continue
             if self._serial.in_waiting:
                 print(self._serial.readline())
-            time.sleep(1)
-            payload = [int(254 * self._gamepad.get_button(x)) for x in range(8)]
-            payload.insert(0, 255)
+            time.sleep(0.030) # attempt at synchronization with main thread which may print output
+            # Keybindings:
+            # LStick - Axis 0 (Horizontal): Shift the ROV sideways
+            # LStick - Axis 1 (Vertical): Move forward/ backward
+            # RStick - Axis 2 (Horizontal): Rotate sideways about vertical axis
+            # RStick - Axis 3 (Vertical): Tilt up or down
+            # L2 - Axis 4 (+1 then /2): descend
+            # R2 - Axis 5 (+1 then / 2): climb
+            payload = [abs(int(254 * self._gamepad.get_axis(x))) for x in range(4)]
+            climb = int(254 * (((self._gamepad.get_axis(4) + 1) / 2) - ((self._gamepad.get_axis(5) + 1) / 2)))
+            abs_climb = abs(climb)
+            payload.append(abs_climb)
             payload.append(0b10101010)  # directions
             payload.append(0b10101010)  # leds
-            payload.append(xor(payload[1:8]))
-            payload = struct.pack("12B", *payload)
+            payload.append(xor(payload[:7]))
+            payload.append(255) # Terminator byte
+            print(payload)
+            payload = struct.pack("9B", *payload)
             self._serial.write(payload)
 
 
