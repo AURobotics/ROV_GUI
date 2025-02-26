@@ -78,23 +78,23 @@ float F5, F6; // Thruster forces
 unsigned char incoming [10];
 unsigned char term = 255;
 
-// // Cytron Motor driver pins
-// int pwm_pin1, dir_pin1;
+// // Cytron Motor driver pins 
+// int pwm_pin1, dir_pin1; 
 // int pwm_pin2, dir_pin2;
 // int pwm_pin3, dir_pin3;
-// int pwm_pin4, dir_pin4;
+// int pwm_pin4, dir_pin4; 
 
 void setup_H_motors(){
 
   pinMode(dirH1,OUTPUT);
   pinMode(pwmH1,OUTPUT);
-
+  
   pinMode(dirH2,OUTPUT);
   pinMode(pwmH2,OUTPUT);
-
+  
   pinMode(dirH3,OUTPUT);
   pinMode(pwmH3,OUTPUT);
-
+  
   pinMode(dirH4,OUTPUT);
   pinMode(pwmH4,OUTPUT);
 
@@ -119,14 +119,14 @@ void setup_V_motors(){
 void controlHmotors(float speed){
   for (int num = 0 ; num <=3 ; num++ ){
      digitalWrite(HorizontalThrusterPinsDir[num], (outputHorizontalThrusters[num] >= 0) ? HIGH : LOW );
-     analogWrite(HorizontalThrusterPinsSpeed[num] , abs(outputHorizontalThrusters[num]) ) ;
+     analogWrite(HorizontalThrusterPinsSpeed[num] , abs(outputHorizontalThrusters[num]) ) ; 
   }
-
+ 
 }
 // Pseudoinverse matrix T_inverse
 double T_inverse_Horizontal[4][3] = {
-    {0.25, 0.25, 0.5},
-    {0.25, -0.25, -0.5},
+    {0.25, 0.25, 0.5}, 
+    {0.25, -0.25, -0.5}, 
     {-0.25, 0.25, -0.5},
     {-0.25, -0.25, 0.5}
 };
@@ -136,14 +136,14 @@ double T_inverse_Vertical[2][2] = {
     {0.5,  1},
     {0.5, -1}
 };
-
-// Output thruster forces
+  
+// Output thruster forces  
 
 // Apply constraints to the thruster forces
 // if the maximum absolute force exceeds the max allowed force, scale down
 void applyConstraints(float* thruster_forces, int size, float max_force) {
     float max_abs_force = 0;
-
+    
     // Find the maximum absolute value of the thruster forces
     for (int i = 0; i < size; i++) {
         if (abs(thruster_forces[i]) > max_abs_force) {
@@ -156,14 +156,14 @@ void applyConstraints(float* thruster_forces, int size, float max_force) {
         float scaling_factor = max_force / max_abs_force;
         for (int i = 0; i < size; i++) {
             thruster_forces[i] *= scaling_factor; // Apply the scaling factor
-          }
+          }   
     }
 }
 
 void ComputeHorrizontalThrustForces(double* input, double T_inverse[4][3], float* outputThrusters){
-
+  
   // Perform matrix multiplication outputThrusters = T_inverse * input
-
+  
   for (int i = 0; i < 4; i++) {
     outputThrusters[i] = 0;
     for (int j = 0; j < 3; j++) {
@@ -174,13 +174,13 @@ void ComputeHorrizontalThrustForces(double* input, double T_inverse[4][3], float
 
   float max_force=255 ;
   applyConstraints(outputThrusters, 4,max_force);
-
+    
 }
 
 void ComputeVerticalThrustForces(double* input, double T_inverse[2][2], float* outputThrusters){
-
+  
   // Perform matrix multiplication outputThrusters = T_inverse * input
-
+  
   for (int i = 0; i < 2; i++) {
     outputThrusters[i] = 0;
     for (int j = 0; j < 2; j++) {
@@ -190,19 +190,19 @@ void ComputeVerticalThrustForces(double* input, double T_inverse[2][2], float* o
   }
 
   float max_force=255 ;
-  applyConstraints(outputThrusters, 2,max_force);
+  applyConstraints(outputThrusters, 2,max_force);    
 }
 
 
 // Configure the motor driver.
 
-// CytronMD motor_FR(PWM_DIR, pwm_pin1, dir_pin1);                  // front_right thruster
+// CytronMD motor_FR(PWM_DIR, pwm_pin1, dir_pin1);                  // front_right thruster 
 // CytronMD motor_FL(PWM_DIR, pwm_pin2, dir_pin2);                  // front_left thruster
 // CytronMD motor_BR(PWM_DIR, pwm_pin3, dir_pin3);
 // CytronMD motor_BL(PWM_DIR, pwm_pin4, dir_pin4);
 
 // void Move_Horizontal(float* outputHorizontalThrusters){
-
+  
 
 //   motor_FR.setSpeed(outputHorizontalThrusters[0]);
 //   motor_FL.setSpeed(outputHorizontalThrusters[1]);
@@ -213,6 +213,7 @@ void ComputeVerticalThrustForces(double* input, double T_inverse[2][2], float* o
 
 
 void setup() {
+  Serial.println("Connected");
   Serial.begin(115200);
 }
 
@@ -246,7 +247,7 @@ void loop() {
     inputV [0] = (float) incoming [4] / 254.0 * 510.0 * ((incoming [5] & 16)? -1 : 1); // Fz
     inputV [1] = (float) incoming [2] / 254.0 * 255.0 * ((incoming [5] & 4)? -1 : 1);  // Tpitch
 
-    for (int counter = 0 ; counter <=4  ; counter++){
+    for (int counter = 0 ; counter <=7  ; counter++){
       Serial.print(incoming [counter]) ;
       Serial.print(" ");
     }
@@ -276,7 +277,7 @@ void loop() {
 
   // Input vector R
   // Compute the thruster forces
-
+  
   // delay(10000); // Wait for 1 second before repeating
 
 }
