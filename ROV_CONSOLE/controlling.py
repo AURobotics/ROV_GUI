@@ -67,6 +67,12 @@ class Controller:
                 result ^= byte
             return result
 
+        def sgn(n: int) -> int:
+            """Returns 1 for even numbers, -1 for odd numbers"""
+            if n % 2:
+                return -1
+            return 1
+
         while True:
 
             for event in pygame.event.get():
@@ -78,9 +84,6 @@ class Controller:
                     self._emit_connection_change()
             if self._gamepad is None or self._serial is None:
                 continue
-            if self._serial.in_waiting:
-                print(self._serial.readline())
-            time.sleep(0.030) # attempt at synchronization with main thread which may print output
             # Keybindings:
             # LStick - Axis 0 (Horizontal): Shift the ROV sideways
             # LStick - Axis 1 (Vertical): Move forward/ backward
@@ -89,9 +92,13 @@ class Controller:
             # L2 - Axis 4 (+1 then /2): descend
             # R2 - Axis 5 (+1 then / 2): climb
             # Climb total value: (R2 + 1) / 2 - (L2 + 1) / 2
-            signed_payload = [int(254 * self._gamepad.get_axis(x)) for x in range(4)] # all except L2 and R2
+            order_of_axes = [1, 0, 3, 2]
+            signed_payload = [int(254 * sgn(x) * self._gamepad.get_axis(x)) for x in order_of_axes] # all except L2 and R2
+            signed_payload = [byte if byte > 30 else 0 for byte in signed_payload]
+            # signed_payload = [23, -190, 0, 230]
             climb = int(254 * (((self._gamepad.get_axis(4) + 1) / 2) - ((self._gamepad.get_axis(5) + 1) / 2)))
             signed_payload.append(climb)
+            #signed_payload = [0, 0, 150, 0, 0]
             thruster_payload = [abs(b) for b in signed_payload]
             sign_byte = 0
             for i, byte in enumerate(signed_payload):
@@ -102,9 +109,13 @@ class Controller:
             payload.append(0b10101010)  # leds
             payload.append(xor(payload[:7]))
             payload.append(255) # Terminator byte
+            print(signed_payload)
             print(payload)
             payload = struct.pack("9B", *payload)
             self._serial.write(payload)
+            print(self._serial.readline())
+            print(self._serial.readline())
+            time.sleep(0.015) # attempt at synchronization with main thread which may print output
 
 
     def __del__(self) -> None:

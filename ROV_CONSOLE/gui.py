@@ -230,6 +230,7 @@ class MainWindow(QMainWindow):
         self.state = self.windowState()
 
         self.initUI()
+
         ser = serial.Serial('COM7', baudrate=115200)
         self.controller = Controller(ser)
 
