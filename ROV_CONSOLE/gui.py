@@ -3,7 +3,6 @@ import struct
 from .controlling import Controller
 import threading
 
-from PyQt5.QtWidgets import QMenu
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -231,7 +230,7 @@ class MainWindow(QMainWindow):
 
         self.initUI()
 
-        ser = serial.Serial('COM7', baudrate=115200)
+        ser = serial.Serial('COM8', baudrate=115200)
         self.controller = Controller(ser)
 
         self.timer = QTimer()
@@ -242,8 +241,8 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
-        self.middleCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
-        self.rightCameraWidget = CameraWidget(self, 2, self.width() // 3, self.height() // 4)
+        self.middleCameraWidget = CameraWidget(self, "http://192.168.1.2:8081/stream", self.width() // 3, self.height() // 4)
+        self.rightCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = QWidget()
         self.thrustersWidget = ThrustersWidget(self)
@@ -277,16 +276,19 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
         central_widget.setLayout(grid)
+        self._cameras_thread = threading.Thread(target=self.cameras_thread, daemon=True)
+        self._cameras_thread.start()
 
     def updateFrame(self):
         if (self.state != self.windowState()):
             self.state = self.windowState()
-        self.leftCameraWidget.update()
-        self.middleCameraWidget.update()
-        self.rightCameraWidget.update()
         self.orientationsWidget.update()
         
-
+    def cameras_thread(self):
+        while True:
+            self.leftCameraWidget.update()
+            self.middleCameraWidget.update()
+            self.rightCameraWidget.update()
     def initTasks(self):
         tasksContainer = QWidget()
         tasksScrollLayout = QVBoxLayout(tasksContainer)
