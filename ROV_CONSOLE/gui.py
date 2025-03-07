@@ -2,6 +2,7 @@ import sys, cv2, random
 import struct
 from .controlling import Controller
 import threading
+from .vision import Camera
 
 from PyQt5.QtWidgets import QMenu
 from PySide6.QtWidgets import (
@@ -40,18 +41,16 @@ import serial
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
-        self.cam = cam
-        self.cap = cv2.VideoCapture(self.cam)
-
-        self.update()
+        self.cam = Camera(cam)
 
     def update(self):
-        if self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if ret:
+            frame = self.cam.frame
+            if frame is not None:
                 q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
                 self.setPixmap(QPixmap.fromImage(q_image))
 
+    def __del__(self):
+        self.cam.__del__()
 
 class OrientationsWidget(QWidget):
     def __init__(self, parent):
@@ -229,7 +228,7 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
-        self.timer.start(100)
+        self.timer.start(30)
 
     def initUI(self):
         central_widget = QWidget()
