@@ -1,5 +1,6 @@
 import time
 from collections.abc import Callable
+from typing import Any
 
 from threading import Thread
 import serial
@@ -12,7 +13,7 @@ class Controller:
     _gamepads:               list[pygame.joystick.JoystickType]
     _gamepad:                pygame.joystick.JoystickType | None
     _gamepad_guid:           str | None
-    _send_payload: serial.Serial | None
+    _send_payload:           Callable[[Any], None] | None
     _emit_connection_change: Callable[[], None]
 
     @staticmethod
