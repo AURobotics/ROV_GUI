@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):
         self.initUI()
 
         ser = serial.Serial('COM7', baudrate=115200)
-        self.controller = Controller(ser)
+        self.controller = Controller(ser.write)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
