@@ -2,7 +2,6 @@ import sys, random
 from .controlling import Controller
 from .vision import Camera
 
-from PyQt5.QtWidgets import QMenu
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
