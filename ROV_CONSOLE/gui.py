@@ -1,7 +1,6 @@
-import sys, cv2, random
-import struct
+import sys, random
 from .controlling import Controller
-import threading
+from .vision import Camera
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -32,31 +31,19 @@ from PySide6.QtCore import (
     Qt
 )
 
-import pygame
 import serial
 
 
 class CameraWidget(QLabel):
-    def __init__(self, parent, cam, w, h):
+    def __init__(self, parent, cam):
         super().__init__(parent)
-
-        # self.setScaledContents (1)
-
-        self.cam = cam
-        self.w = w
-        self.h = h
-        self.cap = cv2.VideoCapture(self.cam)
-
-        self.update()
+        self._cam = Camera(cam)
 
     def update(self):
-        if self.cap.isOpened():
-            ret, frame = self.cap.read()
-            if ret:
-                frame = cv2.resize(frame, (self.w, self.h))
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            q_image = QImage(frame.data, self.w, self.h, frame.strides[0], QImage.Format.Format_RGB888)
-            self.setPixmap(QPixmap.fromImage(q_image))
+            frame = self._cam.frame
+            if frame is not None:
+                q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
+                self.setPixmap(QPixmap.fromImage(q_image))
 
 
 class OrientationsWidget(QWidget):
@@ -235,14 +222,14 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
-        self.timer.start(30)
+        self.timer.start(15)
 
     def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
-        self.middleCameraWidget = CameraWidget(self, "http://192.168.1.2:8081/stream", self.width() // 3, self.height() // 4)
-        self.rightCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
+        self.leftCameraWidget = CameraWidget(self, 0)
+        self.middleCameraWidget = CameraWidget(self, "http://192.168.1.2:8081/stream")
+        self.rightCameraWidget = CameraWidget(self, 1)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = QWidget()
         self.thrustersWidget = ThrustersWidget(self)

@@ -1,5 +1,6 @@
 import time
 from collections.abc import Callable
+from typing import Any
 
 from threading import Thread
 import serial
@@ -12,20 +13,20 @@ class Controller:
     _gamepads:               list[pygame.joystick.JoystickType]
     _gamepad:                pygame.joystick.JoystickType | None
     _gamepad_guid:           str | None
-    _serial:                 serial.Serial | None
+    _send_payload:           Callable[[Any], None] | None
     _emit_connection_change: Callable[[], None]
 
     @staticmethod
     def _no_op():
         pass
 
-    def __init__(self, _serial = None, _connection_callback = None) -> None:
+    def __init__(self, payload_callback = None, connection_callback = None) -> None:
         pygame.init()
-        self._emit_connection_change = _connection_callback if _connection_callback is not None else self._no_op
+        self._emit_connection_change = connection_callback if connection_callback is not None else self._no_op
         self._gamepad = None
         self._gamepad_guid = None
         self._refresh_gamepads()
-        self._serial = _serial
+        self._send_payload = payload_callback
         self._handler_thread = Thread(target=self._handler_loop, daemon=True)
         self._handler_thread.start()
 
@@ -50,9 +51,10 @@ class Controller:
         return [gamepad.get_name() for gamepad in self._gamepads]
 
     @property
-    def gamepad(self) -> str:
+    def gamepad(self) -> str | None:
         if self._gamepad is not None:
             return f'{self._gamepad.get_id()}: {self._gamepad.get_name()}'
+        return None
 
     @gamepad.setter
     def gamepad(self, index: int) -> None:
@@ -73,6 +75,9 @@ class Controller:
                 return -1
             return 1
 
+        led_and_valves = 0
+        order_of_axes = [1, 0, 3, 2]
+        leds_buttons = [15, 10, 9]
         while True:
 
             for event in pygame.event.get():
@@ -82,8 +87,9 @@ class Controller:
                 if event.type == pygame.JOYDEVICEREMOVED:
                     self._refresh_gamepads()
                     self._emit_connection_change()
-            if self._gamepad is None or self._serial is None:
+            if self._gamepad is None or self._send_payload is None:
                 continue
+
             # Keybindings:
             # LStick - Axis 0 (Horizontal): Shift the ROV sideways
             # LStick - Axis 1 (Vertical): Move forward/ backward
@@ -92,7 +98,6 @@ class Controller:
             # L2 - Axis 4 (+1 then /2): descend
             # R2 - Axis 5 (+1 then / 2): climb
             # Climb total value: (R2 + 1) / 2 - (L2 + 1) / 2
-            order_of_axes = [1, 0, 3, 2]
             signed_payload = [int(254 * sgn(x) * self._gamepad.get_axis(x)) for x in order_of_axes] # all except L2 and R2
             signed_payload = [byte if byte > 30 else 0 for byte in signed_payload]
             # signed_payload = [23, -190, 0, 230]
@@ -106,15 +111,17 @@ class Controller:
                     sign_byte |= 1 << i
             payload = thruster_payload
             payload.append(sign_byte)
-            payload.append(0b10101010)  # leds
+            # Touchpad Click - LED: 0000 0 LED 0      0
+            # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
+            for i, button in enumerate(leds_buttons):
+                led_and_valves ^= (self._gamepad.get_button(button) << i)
+            payload.append(led_and_valves)
             payload.append(xor(payload[:7]))
             payload.append(255) # Terminator byte
             print(signed_payload)
             print(payload)
             payload = struct.pack("9B", *payload)
-            self._serial.write(payload)
-            print(self._serial.readline())
-            print(self._serial.readline())
+            self._send_payload(payload)
             time.sleep(0.015) # attempt at synchronization with main thread which may print output
 
 
