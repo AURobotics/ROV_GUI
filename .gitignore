@@ -2,3 +2,7 @@
 /pyqt-env
 Notes.txt
 *.PNG
+
+venv/
+
+*/__pycache__/
