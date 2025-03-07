@@ -38,14 +38,12 @@ import serial
 
 
 class CameraWidget(QLabel):
-    def __init__(self, parent, cam, w, h):
+    def __init__(self, parent, cam):
         super().__init__(parent)
 
         # self.setScaledContents (1)
 
         self.cam = cam
-        self.w = w
-        self.h = h
         self.cap = cv2.VideoCapture(self.cam)
 
         self.update()
@@ -54,9 +52,9 @@ class CameraWidget(QLabel):
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
-                frame = cv2.resize(frame, (self.w, self.h))
+                frame = cv2.resize(frame, (self.width(), self.height()))
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            q_image = QImage(frame.data, self.w, self.h, frame.strides[0], QImage.Format.Format_RGB888)
+            q_image = QImage(frame.data, self.width(), self.height(), frame.strides[0], QImage.Format.Format_RGB888)
             self.setPixmap(QPixmap.fromImage(q_image))
 
 
@@ -231,8 +229,8 @@ class MainWindow(QMainWindow):
 
         self.initUI()
 
-        ser = serial.Serial('COM7', baudrate=115200)
-        self.controller = Controller(ser.write)
+        # ser = serial.Serial('COM7', baudrate=115200)
+        # self.controller = Controller(ser.write)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
@@ -241,9 +239,9 @@ class MainWindow(QMainWindow):
     def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        self.leftCameraWidget = CameraWidget(self, 0, self.width() // 3, self.height() // 4)
-        self.middleCameraWidget = CameraWidget(self, 1, self.width() // 3, self.height() // 4)
-        self.rightCameraWidget = CameraWidget(self, 2, self.width() // 3, self.height() // 4)
+        self.leftCameraWidget = CameraWidget(self, 0)
+        self.middleCameraWidget = CameraWidget(self, 1)
+        self.rightCameraWidget = CameraWidget(self, 2)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = QWidget()
         self.thrustersWidget = ThrustersWidget(self)
