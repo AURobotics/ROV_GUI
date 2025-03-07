@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QCheckBox,
     QPushButton,
-    QMenuBar
+    QMenu
 )
 from PySide6.QtGui import (
     QImage,
@@ -31,7 +31,9 @@ from PySide6.QtCore import (
     Qt
 )
 
+import serial.tools.list_ports
 import serial
+from functools import partial
 
 
 class CameraWidget(QLabel):
@@ -88,6 +90,13 @@ class ThrustersWidget(QWidget):
 
         self.setMinimumSize(parent.width() // 3, parent.height() // 4)
 
+        self.frontLabel = QLabel(self)
+        self.backLabel = QLabel(self)
+        self.leftfrontLabel = QLabel(self)
+        self.rightfrontLabel = QLabel(self)
+        self.leftbackLabel = QLabel(self)
+        self.rightbackLabel = QLabel(self)
+
         # Default colors
         self.square_color = QColor(0, 0, 0)  # Black for center square
 
@@ -109,12 +118,22 @@ class ThrustersWidget(QWidget):
     def set_colors(self):
         """Allows changing colors dynamically"""
 
-        frontRightSpeed = random.randint(0, 255)
-        backRightSpeed = random.randint(0, 255)
-        frontLeftSpeed = random.randint(0, 255)
-        backLeftSpeed = random.randint(0, 255)
-        upFrontSpeed = random.randint(0, 255)
-        upBackSpeed = random.randint(0, 255)
+        frontRightSpeed = 0
+        backRightSpeed = 255
+        frontLeftSpeed = 100
+        backLeftSpeed = 200
+        upFrontSpeed = 50
+        upBackSpeed = 150
+
+        self.frontLabel.setText( str(upFrontSpeed))
+        self.backLabel.setText(str(upBackSpeed))
+        self.leftfrontLabel.setText( str(frontLeftSpeed))
+        self.rightfrontLabel.setText(str(frontRightSpeed))
+        self.leftbackLabel.setText( str(backLeftSpeed))
+        self.rightbackLabel.setText( str(backRightSpeed))
+       
+
+
 
         self.square_color = QColor(0, 0, 0)
         self.circle_colors = [
@@ -140,8 +159,8 @@ class ThrustersWidget(QWidget):
         max_height = self.parent.height() // 4
         size = min(max_width, max_height)
 
-        # Central square (50% of size)
-        square_size = int(size * 0.5)
+        # Central square (70% of size)
+        square_size = int(size * 0.7)           ###changing the ratio changes the thrusters size### 
         square_x = (self.width() - square_size) // 2
         square_y = (self.height() - square_size) // 2
 
@@ -161,10 +180,18 @@ class ThrustersWidget(QWidget):
 
         rotated_offsets = [
             (square_x - square_size // 3, square_y - square_size // 3),  # Top-left
-            (square_x + square_size + square_size // 6, square_y - square_size // 3),  # Top-right
-            (square_x - square_size // 3, square_y + square_size + square_size // 6),  # Bottom-left
-            (square_x + square_size + square_size // 6, square_y + square_size + square_size // 6)  # Bottom-right
+            (square_x + square_size + square_size // 3, square_y - square_size // 3),  # Top-right
+            (square_x - square_size // 3, square_y + square_size + square_size // 3),  # Bottom-left
+            (square_x + square_size + square_size // 3, square_y + square_size + square_size // 3)  # Bottom-right
         ]
+
+        self.frontLabel.setGeometry(offsets[0][0]-10, offsets[0][1]-15, 100, 30)  # (x, y, width, height)
+        self.backLabel.setGeometry(offsets[1][0]-10, offsets[1][1]-15, 100, 30)
+        self.leftfrontLabel.setGeometry(rotated_offsets[0][0]-10,rotated_offsets[0][1]-15, 100, 30)
+        self.rightfrontLabel.setGeometry(rotated_offsets[1][0]-10,rotated_offsets[1][1]-15, 100, 30)
+        self.leftbackLabel.setGeometry(rotated_offsets[2][0]-10,rotated_offsets[2][1]-15, 100, 30)  
+        self.rightbackLabel.setGeometry(rotated_offsets[3][0]-10,rotated_offsets[3][1]-15, 100, 30)
+      
 
         circle_radius = int(square_size * 0.2)
 
@@ -182,9 +209,9 @@ class ThrustersWidget(QWidget):
             painter.drawRect(-circle_radius, -circle_radius, circle_radius * 2, circle_radius * 2)
             painter.restore()
 
-    def update(self):
+    def updateThrusters(self):
         self.set_colors()
-        self.paintEvent(None)
+        self.update()
 
 
 class ScriptWidget(QWidget):
@@ -204,7 +231,21 @@ class ScriptWidget(QWidget):
 
     def runScript(self):
         print(self.desc)
+        
+# class ControllerWidget(QWidget):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.view = QQuickView() # create instance for qml content
+#         self.view.setSource(QUrl("controller.qml")) # load qml file
 
+#         # Check for errors
+#         if self.view.status() == QQuickView.Error:
+#             for error in self.view.errors():
+#                 print(error.toString())
+
+#         self.container = self.createWindowContainer(self.view, self) #
+#         layout = QVBoxLayout(self)
+#         layout.addWidget(self.container)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -217,8 +258,8 @@ class MainWindow(QMainWindow):
 
         self.initUI()
 
-        ser = serial.Serial('COM8', baudrate=115200)
-        self.controller = Controller(ser)
+        # ser = serial.Serial('COM8', baudrate=115200)
+        # self.controller = Controller(ser)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
@@ -238,17 +279,26 @@ class MainWindow(QMainWindow):
 
         self.initTasks()
         self.initScripts()
-
+        
         grid = QGridLayout()
 
-        grid.setColumnMinimumWidth(0, self.width() // 3)
-        grid.setColumnMinimumWidth(1, self.width() // 3)
-        grid.setColumnMinimumWidth(2, self.width() // 3)
+        # grid.setColumnMinimumWidth(0, self.width() // 3)
+        # grid.setColumnMinimumWidth(1, self.width() // 3)
+        # grid.setColumnMinimumWidth(2, self.width() // 3)
 
-        grid.setRowMinimumHeight(0, self.height() // 4)
-        grid.setRowMinimumHeight(1, self.height() // 4)
-        grid.setRowMinimumHeight(2, self.height() // 4)
-        grid.setRowMinimumHeight(3, self.height() // 4)
+        # grid.setRowMinimumHeight(0, self.height() // 4)
+        # grid.setRowMinimumHeight(1, self.height() // 4)
+        # grid.setRowMinimumHeight(2, self.height() // 4)
+        # grid.setRowMinimumHeight(3, self.height() // 4)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 1)
+
+        grid.setRowStretch(0, 1.5)
+        grid.setRowStretch(1, 1.5)
+        grid.setRowStretch(2, 1)
+        grid.setRowStretch(3, 2)
 
         grid.addWidget(self.leftCameraWidget, 0, 0, 2, 1)
         grid.addWidget(self.middleCameraWidget, 0, 1, 2, 1)
@@ -265,11 +315,39 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(grid)
         self._cameras_thread = threading.Thread(target=self.cameras_thread, daemon=True)
         self._cameras_thread.start()
+        
+    
+    def createMenuBar(self):
+        ports = serial.tools.list_ports.comports()
+        # 'com_list' contains list of all com ports
+        com_list = []
+        for p in ports:
+            com_list.append(p.device)
+
+        menuBar = self.menuBar()
+        #  Clear existing menus
+        menuBar.clear()
+        # Creating menus using a QMenu object
+        fileMenu = QMenu("Serial Port", self)
+        menuBar.addMenu(fileMenu)
+        for i in com_list:
+            port_selected = fileMenu.addAction(f"{i}")
+            port_selected.triggered.connect(partial(self.portSelected, i))
+            
+    def portSelected(self, port):
+        print(f"Selected port: {port}")
+        ser = serial.Serial(port , baudrate=115200)
+        # self.controller = Controller(ser)
+        
 
     def updateFrame(self):
         if (self.state != self.windowState()):
             self.state = self.windowState()
         self.orientationsWidget.update()
+        self.thrustersWidget.updateThrusters()
+        self.createMenuBar()
+
+        
         
     def cameras_thread(self):
         while True:
