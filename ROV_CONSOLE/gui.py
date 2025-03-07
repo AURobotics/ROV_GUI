@@ -40,9 +40,6 @@ import serial
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
-
-        # self.setScaledContents (1)
-
         self.cam = cam
         self.cap = cv2.VideoCapture(self.cam)
 
@@ -52,10 +49,8 @@ class CameraWidget(QLabel):
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
-                frame = cv2.resize(frame, (self.width(), self.height()))
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            q_image = QImage(frame.data, self.width(), self.height(), frame.strides[0], QImage.Format.Format_RGB888)
-            self.setPixmap(QPixmap.fromImage(q_image))
+                q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
+                self.setPixmap(QPixmap.fromImage(q_image))
 
 
 class OrientationsWidget(QWidget):
@@ -234,7 +229,7 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
-        self.timer.start(30)
+        self.timer.start(100)
 
     def initUI(self):
         central_widget = QWidget()
