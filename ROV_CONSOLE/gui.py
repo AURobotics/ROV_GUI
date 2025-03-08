@@ -1,4 +1,5 @@
 import sys, random
+import threading
 from .controlling import Controller
 from .vision import Camera
 
@@ -13,7 +14,9 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QCheckBox,
     QPushButton,
-    QMenu
+    QMenu,
+    QInputDialog,
+    QLineEdit
 )
 from PySide6.QtGui import (
     QImage,
@@ -259,7 +262,8 @@ class MainWindow(QMainWindow):
         self.initUI()
 
         # ser = serial.Serial('COM8', baudrate=115200)
-        # self.controller = Controller(ser)
+        self.controller = Controller()
+        self.ser: serial.Serial|None = None
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
@@ -269,7 +273,7 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.leftCameraWidget = CameraWidget(self, 0)
-        self.middleCameraWidget = CameraWidget(self, "http://192.168.1.2:8081/stream")
+        self.middleCameraWidget = CameraWidget(self, 2)
         self.rightCameraWidget = CameraWidget(self, 1)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = QWidget()
@@ -295,8 +299,8 @@ class MainWindow(QMainWindow):
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(2, 1)
 
-        grid.setRowStretch(0, 1.5)
-        grid.setRowStretch(1, 1.5)
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 1)
         grid.setRowStretch(3, 2)
 
@@ -333,11 +337,25 @@ class MainWindow(QMainWindow):
         for i in com_list:
             port_selected = fileMenu.addAction(f"{i}")
             port_selected.triggered.connect(partial(self.portSelected, i))
-            
+        fileMenu.addSeparator()
+        manual_port_selection = fileMenu.addAction('Manual Port Selection')
+        manual_port_selection.triggered.connect(partial(self.manual_port_selection))
+
+    def manual_port_selection(self):
+        text, ok = QInputDialog.getText(self, "QInputDialog.getText()",
+                                        "Port or URL:", QLineEdit.EchoMode.Normal,
+                                        "COM")
+        print(text)
+        self.portSelected(text)
     def portSelected(self, port):
         print(f"Selected port: {port}")
-        ser = serial.Serial(port , baudrate=115200)
-        # self.controller = Controller(ser)
+        if self.ser is not None:
+            self.ser.close()
+        if port.startswith("rfc"):
+            self.ser = serial.serial_for_url(port, baudrate=115200)
+        else:
+            self.ser = serial.Serial(port , baudrate=115200)
+        self.controller.payload_callback = self.ser.write
         
 
     def updateFrame(self):
@@ -346,7 +364,12 @@ class MainWindow(QMainWindow):
         self.orientationsWidget.update()
         self.thrustersWidget.updateThrusters()
         self.createMenuBar()
-
+        if self.ser is not None:
+            try:
+                while self.ser.in_waiting:
+                    print(self.ser.readline())
+            except serial.SerialException:
+                self.ser = None
         
         
     def cameras_thread(self):

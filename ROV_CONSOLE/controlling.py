@@ -44,7 +44,12 @@ class Controller:
                 return
         self._gamepad = self._gamepads[0]
         self._gamepad_guid = self._gamepad.get_guid()
-
+    @property
+    def payload_callback(self) -> Callable[[Any], None] | None:
+        return self._send_payload
+    @payload_callback.setter
+    def payload_callback(self, payload_callback) -> None:
+        self._send_payload = payload_callback
     @property
     def gamepads(self) -> list[str]:
         self._refresh_gamepads()
@@ -118,7 +123,6 @@ class Controller:
             payload.append(led_and_valves)
             payload.append(xor(payload[:7]))
             payload.append(255) # Terminator byte
-            print(signed_payload)
             print(payload)
             payload = struct.pack("9B", *payload)
             self._send_payload(payload)
