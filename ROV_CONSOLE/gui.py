@@ -33,6 +33,7 @@ from PySide6.QtCore import (
     QTimer,
     Qt
 )
+from trying_shit import PS4ControllerSimulation
 
 import serial.tools.list_ports
 import serial
@@ -235,20 +236,13 @@ class ScriptWidget(QWidget):
     def runScript(self):
         print(self.desc)
         
-# class ControllerWidget(QWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.view = QQuickView() # create instance for qml content
-#         self.view.setSource(QUrl("controller.qml")) # load qml file
-
-#         # Check for errors
-#         if self.view.status() == QQuickView.Error:
-#             for error in self.view.errors():
-#                 print(error.toString())
-
-#         self.container = self.createWindowContainer(self.view, self) #
-#         layout = QVBoxLayout(self)
-#         layout.addWidget(self.container)
+class ControllerWidget(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.controller_sim = PS4ControllerSimulation()
+        layout = QVBoxLayout()
+        layout.addWidget(self.controller_sim)
+        self.setLayout(layout)
 
 class MainWindow(QMainWindow):
     def __init__(self):
