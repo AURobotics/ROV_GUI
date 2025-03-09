@@ -270,7 +270,7 @@ class MainWindow(QMainWindow):
         self.middleCameraWidget = CameraWidget(self, 2)
         self.rightCameraWidget = CameraWidget(self, 1)
         self.orientationsWidget = OrientationsWidget(self)
-        self.controllerWidget = QWidget()
+        self.controllerWidget = ControllerWidget(self)
         self.thrustersWidget = ThrustersWidget(self)
         self.tasksWidget = QScrollArea(self)
         self.scriptsWidget = QScrollArea(self)
