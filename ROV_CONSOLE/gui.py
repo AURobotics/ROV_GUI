@@ -261,7 +261,6 @@ class MainWindow(QMainWindow):
 
         self.initUI()
 
-        # ser = serial.Serial('COM8', baudrate=115200)
         self.controller = Controller()
         self.ser: serial.Serial|None = None
 
@@ -345,7 +344,6 @@ class MainWindow(QMainWindow):
         text, ok = QInputDialog.getText(self, "QInputDialog.getText()",
                                         "Port or URL:", QLineEdit.EchoMode.Normal,
                                         "COM")
-        print(text)
         self.portSelected(text)
     def portSelected(self, port):
         print(f"Selected port: {port}")
@@ -366,10 +364,11 @@ class MainWindow(QMainWindow):
         self.createMenuBar()
         if self.ser is not None:
             try:
-                while self.ser.in_waiting:
-                    print(self.ser.readline())
+                if self.ser.in_waiting:
+                    print(self.ser.read_all().decode())
             except serial.SerialException:
                 self.ser = None
+                self.controller.payload_callback = None
         
         
     def cameras_thread(self):
