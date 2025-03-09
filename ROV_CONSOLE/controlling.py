@@ -84,7 +84,7 @@ class Controller:
         order_of_axes = [1, 0, 3, 2]
         leds_buttons = [15, 10, 9]
         while True:
-
+            time.sleep(0.03)  # attempt at synchronization with main thread which may print output
             for event in pygame.event.get():
                 if event.type == pygame.JOYDEVICEADDED:
                     self._refresh_gamepads()
@@ -126,7 +126,6 @@ class Controller:
             print(payload)
             payload = struct.pack("9B", *payload)
             self._send_payload(payload)
-            time.sleep(0.015) # attempt at synchronization with main thread which may print output
 
 
     def __del__(self) -> None:
