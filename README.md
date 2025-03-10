@@ -12,5 +12,5 @@
 Extra Steps:
 
 - To kill the cameras, use `killall ./ustreamer/ustreamer`
-- Make sure to initialize the python venv using `python -m venv venv` and activate it using `source venv/bin/activate`
+- Make sure to initialize the python venv using `python -m venv venv` and activate it using `venv\Scripts\activate` (Windows) or `source venv/bin/activate` (Linux)
 - To install the required packages, use `pip install -r requirements.txt`
