@@ -33,7 +33,7 @@ from PySide6.QtCore import (
     QTimer,
     Qt
 )
-from trying_shit import PS4ControllerSimulation
+from .controller_widget import ControllerDisplay
 
 import serial.tools.list_ports
 import serial
@@ -75,7 +75,6 @@ class OrientationsWidget(QWidget):
         self.update()
 
     def update(self):
-        # TODO: Change the randint to reading from RPi/ESP32 using PySerial
         depthReading = random.randint(0, 10)
         yawReading = random.randint(0, 10)
         pitchReading = random.randint(0, 10)
@@ -239,9 +238,9 @@ class ScriptWidget(QWidget):
 class ControllerWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
-        self.controller_sim = PS4ControllerSimulation()
+        self.controller_display = ControllerDisplay()
         layout = QVBoxLayout()
-        layout.addWidget(self.controller_sim)
+        layout.addWidget(self.controller_display)
         self.setLayout(layout)
 
 class MainWindow(QMainWindow):
@@ -310,7 +309,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
         central_widget.setLayout(grid)
-        self._cameras_thread = threading.Thread(target=self.cameras_thread, daemon=True)
+        self._cameras_thread = threading.Thread(target=self.cameras_thread)
         self._cameras_thread.start()
         
     
@@ -338,7 +337,8 @@ class MainWindow(QMainWindow):
         text, ok = QInputDialog.getText(self, "QInputDialog.getText()",
                                         "Port or URL:", QLineEdit.EchoMode.Normal,
                                         "COM")
-        self.portSelected(text)
+        if ok:
+            self.portSelected(text)
     def portSelected(self, port):
         print(f"Selected port: {port}")
         if self.ser is not None:
@@ -358,8 +358,8 @@ class MainWindow(QMainWindow):
         self.createMenuBar()
         if self.ser is not None:
             try:
-                if self.ser.in_waiting:
-                    print(self.ser.read_all().decode())
+                while self.ser.in_waiting:
+                    print(self.ser.readline().decode())
             except serial.SerialException:
                 self.ser = None
                 self.controller.payload_callback = None
