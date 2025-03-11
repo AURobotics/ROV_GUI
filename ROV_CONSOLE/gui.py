@@ -38,6 +38,12 @@ from .controller_widget import ControllerDisplay
 import serial.tools.list_ports
 import serial
 from functools import partial
+import requests
+import subprocess
+
+ESP_TOOL = ["python", "-m", "esptool"]
+RASPBERY_PI_IP = "192.168.1.2"
+
 
 
 class CameraWidget(QLabel):
@@ -264,9 +270,27 @@ class MainWindow(QMainWindow):
     def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        self.leftCameraWidget = CameraWidget(self, 0)
-        self.middleCameraWidget = CameraWidget(self, 2)
-        self.rightCameraWidget = CameraWidget(self, 1)
+        def is_url_reachable(url):
+            try:
+                response = requests.get(url, timeout=5)
+                return response.status_code == 200
+            except requests.RequestException:
+                return False
+        left_camera_url = "http://" + RASPBERY_PI_IP + ":8081/stream"
+        if is_url_reachable(left_camera_url):
+            self.leftCameraWidget = CameraWidget(self, left_camera_url)
+        else:
+            self.leftCameraWidget = CameraWidget(self, 0)
+        middle_camera_url = "http://" + RASPBERY_PI_IP + ":8080/stream"
+        if is_url_reachable(middle_camera_url):
+            self.middleCameraWidget = CameraWidget(self, middle_camera_url)
+        else:
+            self.middleCameraWidget = CameraWidget(self, 0)
+        right_camera_url = "http://" + RASPBERY_PI_IP + ":8082/stream"
+        if is_url_reachable(right_camera_url):
+            self.rightCameraWidget = CameraWidget(self, right_camera_url)
+        else:
+            self.rightCameraWidget = CameraWidget(self, 0)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = ControllerWidget(self)
         self.thrustersWidget = ThrustersWidget(self)
@@ -332,6 +356,22 @@ class MainWindow(QMainWindow):
         fileMenu.addSeparator()
         manual_port_selection = fileMenu.addAction('Manual Port Selection')
         manual_port_selection.triggered.connect(partial(self.manual_port_selection))
+        reset_esp = fileMenu.addAction('Reset ESP')
+        reset_esp.triggered.connect(partial(self.reset_esp))
+        exit_action = QMenu("Threads", self)
+        menuBar.addMenu(exit_action)
+        kill_cameras_action = exit_action.addAction("Kill Cameras Thread")
+        def kill_cameras_thread():
+            self.kill_flag = True
+            self._cameras_thread.join()
+        kill_cameras_action.triggered.connect(kill_cameras_thread)
+        kill_program = exit_action.addAction("Kill Program")
+        kill_program.triggered.connect(exit)
+
+    portSelected = "COM"
+    def reset_esp(self):
+        global portSelected, ESP_TOOL
+        subprocess.run(ESP_TOOL + ["--port", portSelected, "reset"])
 
     def manual_port_selection(self):
         text, ok = QInputDialog.getText(self, "QInputDialog.getText()",
@@ -340,6 +380,8 @@ class MainWindow(QMainWindow):
         if ok:
             self.portSelected(text)
     def portSelected(self, port):
+        global portSelected
+        portSelected = port
         print(f"Selected port: {port}")
         if self.ser is not None:
             self.ser.close()
@@ -365,8 +407,9 @@ class MainWindow(QMainWindow):
                 self.controller.payload_callback = None
         
         
+    kill_flag = False
     def cameras_thread(self):
-        while True:
+        while not self.kill_flag:
             self.leftCameraWidget.update()
             self.middleCameraWidget.update()
             self.rightCameraWidget.update()
