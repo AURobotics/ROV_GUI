@@ -1,14 +1,9 @@
 import pygame
-import sys
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel
 from PySide6.QtCore import QTimer, QSize
 from PySide6.QtGui import QIcon
 
-import os
-icons_path = os.path.realpath(__file__)
-icons_path = icons_path[:icons_path.rfind('/')]
-icons_path = icons_path[:icons_path.rfind('\\')]
-icons_path = icons_path + '/icons'
+icons_path = __file__[:__file__.rfind('/')][:__file__.rfind('\\')] + '/assets/icons'
 class ControllerDisplay(QWidget):
     def __init__(self):
         super().__init__()
@@ -203,9 +198,3 @@ class ControllerDisplay(QWidget):
             #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS R2.png'))
             # else:
             #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS R2 – 2.png'))
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    controller_sim = PS4ControllerSimulation()
-    controller_sim.show()
-    sys.exit(app.exec())
