@@ -36,7 +36,6 @@ import requests
 RASPBERY_PI_IP = "192.168.1.2"
 
 
-
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
@@ -321,15 +320,22 @@ class MainWindow(QMainWindow):
     def createMenuBar(self):
         self.menu_bar.clear()
         port_menu = QMenu("Serial Port", self)
+        port_is_from_choices = False
         self.menu_bar.addMenu(port_menu)
         for i in self.esp.available_ports:
-            port_sel = port_menu.addAction(f"{i}")
+            port_sel = port_menu.addAction(f'{i}')
             port_sel.setCheckable(True)
             if i == self.esp.port:
                 port_sel.setChecked(True)
+                port_is_from_choices = True
             port_sel.triggered.connect(partial(self.toggle_port, i))
+        if self.esp.port is not None and not port_is_from_choices:
+            port_sel = port_menu.addAction(f'{self.esp.port}')
+            port_sel.setCheckable(True)
+            port_sel.setChecked(True)
+            port_sel.triggered.connect(partial(self.toggle_port, self.esp.port))
         port_menu.addSeparator()
-        manual_port_selection = port_menu.addAction('Manual Port Selection')
+        manual_port_selection = port_menu.addAction('Custom Port Selection')
         manual_port_selection.triggered.connect(partial(self.manual_port_selection))
         if self.esp.connected:
             reset_esp = port_menu.addAction('Reset ESP')
@@ -356,7 +362,6 @@ class MainWindow(QMainWindow):
             self.esp.disconnect()
             self.controller.payload_callback = None
         else:
-            print(f"Selected port: {port}")
             self.esp.connect(port)
             self.controller.payload_callback = self.esp.send
         
