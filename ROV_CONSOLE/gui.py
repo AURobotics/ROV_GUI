@@ -347,6 +347,7 @@ class MainWindow(QMainWindow):
         self.menu_bar.addMenu(controller_menu)
         for gp in self.controller.gamepads:
             gp_sel = controller_menu.addAction(f"{gp}")
+            gp_sel.triggered.connect(partial(self.toggle_controller, gp))
             gp_sel.setCheckable(True)
             if self.controller.gamepad == gp:
                 gp_sel.setChecked(True)
@@ -366,7 +367,14 @@ class MainWindow(QMainWindow):
         else:
             self.esp.connect(port)
             self.controller.payload_callback = self.esp.send
-        
+
+    def toggle_controller(self, indexed_name):
+        if self.controller.connected:
+            if indexed_name == self.controller.gamepad:
+                self.controller.gamepad = None
+                return
+        i = indexed_name[:indexed_name.find(':')]
+        self.controller.gamepad = int(i)
 
     def updateFrame(self):
         if (self.state != self.windowState()):

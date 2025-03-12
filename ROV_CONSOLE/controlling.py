@@ -31,6 +31,8 @@ class Controller:
         self._type = None
         pygame.event.pump()
         self._refresh_gamepads()
+        if self._gamepads:
+            self._connect(0)
         self._send_payload = payload_callback
         self._killswitch = False
         self._bindings_state = {}
@@ -64,7 +66,6 @@ class Controller:
                 return
         if self._gamepads[0].get_name() not in GamepadTypes:
             self._disconnect()
-        self._connect(0)
 
     @property
     def bindings_state(self):
@@ -97,6 +98,7 @@ class Controller:
     def gamepad(self, index: int|None) -> None:
         if index is None or index > len(self._gamepads):
             self._disconnect()
+            return
         self._refresh_gamepads()
         n = self._gamepads[index].get_name()
         for i in GamepadTypes:
