@@ -53,9 +53,8 @@ class CameraWidget(QLabel):
 
     def update(self):
             frame = self._cam.frame
-            if frame is not None:
-                q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
-                self.setPixmap(QPixmap.fromImage(q_image))
+            q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
+            self.setPixmap(QPixmap.fromImage(q_image))
 
 
 class OrientationsWidget(QWidget):
@@ -285,12 +284,12 @@ class MainWindow(QMainWindow):
         if is_url_reachable(middle_camera_url):
             self.middleCameraWidget = CameraWidget(self, middle_camera_url)
         else:
-            self.middleCameraWidget = CameraWidget(self, 0)
+            self.middleCameraWidget = CameraWidget(self, 1)
         right_camera_url = "http://" + RASPBERY_PI_IP + ":8082/stream"
         if is_url_reachable(right_camera_url):
             self.rightCameraWidget = CameraWidget(self, right_camera_url)
         else:
-            self.rightCameraWidget = CameraWidget(self, 0)
+            self.rightCameraWidget = CameraWidget(self, 2)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = ControllerWidget(self)
         self.thrustersWidget = ThrustersWidget(self)
@@ -333,8 +332,6 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
         central_widget.setLayout(grid)
-        self._cameras_thread = threading.Thread(target=self.cameras_thread)
-        self._cameras_thread.start()
         
     
     def createMenuBar(self):
@@ -358,15 +355,6 @@ class MainWindow(QMainWindow):
         manual_port_selection.triggered.connect(partial(self.manual_port_selection))
         reset_esp = fileMenu.addAction('Reset ESP')
         reset_esp.triggered.connect(partial(self.reset_esp))
-        exit_action = QMenu("Threads", self)
-        menuBar.addMenu(exit_action)
-        kill_cameras_action = exit_action.addAction("Kill Cameras Thread")
-        def kill_cameras_thread():
-            self.kill_flag = True
-            self._cameras_thread.join()
-        kill_cameras_action.triggered.connect(kill_cameras_thread)
-        kill_program = exit_action.addAction("Kill Program")
-        kill_program.triggered.connect(exit)
 
     portSelected = "COM"
     def reset_esp(self):
@@ -398,6 +386,9 @@ class MainWindow(QMainWindow):
         self.orientationsWidget.update()
         self.thrustersWidget.updateThrusters()
         self.createMenuBar()
+        self.leftCameraWidget.update()
+        self.middleCameraWidget.update()
+        self.rightCameraWidget.update()
         if self.ser is not None:
             try:
                 while self.ser.in_waiting:
@@ -406,13 +397,7 @@ class MainWindow(QMainWindow):
                 self.ser = None
                 self.controller.payload_callback = None
         
-        
-    kill_flag = False
-    def cameras_thread(self):
-        while not self.kill_flag:
-            self.leftCameraWidget.update()
-            self.middleCameraWidget.update()
-            self.rightCameraWidget.update()
+
     def initTasks(self):
         tasksContainer = QWidget()
         tasksScrollLayout = QVBoxLayout(tasksContainer)
