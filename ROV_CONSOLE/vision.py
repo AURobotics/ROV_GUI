@@ -36,6 +36,7 @@ class Camera:
             self._cam.release()
 
     def __del__(self):
+        self._killswitch = True
         if self._frame_thread.is_alive():
             self._frame_thread.join()
         if self._cam.isOpened():
