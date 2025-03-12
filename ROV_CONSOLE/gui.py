@@ -2,6 +2,7 @@ import sys, random
 import threading
 from .controlling import Controller
 from .vision import Camera
+from .esp32 import ESP32
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -41,7 +42,6 @@ from functools import partial
 import requests
 import subprocess
 
-ESP_TOOL = ["python", "-m", "esptool"]
 RASPBERY_PI_IP = "192.168.1.2"
 
 
@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
         self.initUI()
 
         self.controller = Controller()
-        self.ser: serial.Serial|None = None
+        self.esp = ESP32()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
@@ -335,11 +335,6 @@ class MainWindow(QMainWindow):
         
     
     def createMenuBar(self):
-        ports = serial.tools.list_ports.comports()
-        # 'com_list' contains list of all com ports
-        com_list = []
-        for p in ports:
-            com_list.append(p.device)
 
         menuBar = self.menuBar()
         #  Clear existing menus
@@ -347,8 +342,9 @@ class MainWindow(QMainWindow):
         # Creating menus using a QMenu object
         fileMenu = QMenu("Serial Port", self)
         menuBar.addMenu(fileMenu)
-        for i in com_list:
+        for i in self.esp.available_ports:
             port_selected = fileMenu.addAction(f"{i}")
+            port_selected.setCheckable(True)
             port_selected.triggered.connect(partial(self.portSelected, i))
         fileMenu.addSeparator()
         manual_port_selection = fileMenu.addAction('Manual Port Selection')
@@ -371,13 +367,10 @@ class MainWindow(QMainWindow):
         global portSelected
         portSelected = port
         print(f"Selected port: {port}")
-        if self.ser is not None:
-            self.ser.close()
-        if port.startswith("rfc"):
-            self.ser = serial.serial_for_url(port, baudrate=115200)
-        else:
-            self.ser = serial.Serial(port , baudrate=115200)
-        self.controller.payload_callback = self.ser.write
+        if self.esp.connected:
+            self.esp.disconnect()
+        self.esp.connect(port)
+        self.controller.payload_callback = self.esp.send
         
 
     def updateFrame(self):
@@ -389,13 +382,9 @@ class MainWindow(QMainWindow):
         self.leftCameraWidget.update()
         self.middleCameraWidget.update()
         self.rightCameraWidget.update()
-        if self.ser is not None:
-            try:
-                while self.ser.in_waiting:
-                    print(self.ser.readline().decode())
-            except serial.SerialException:
-                self.ser = None
-                self.controller.payload_callback = None
+        if self.esp.connected:
+            while self.esp.incoming:
+                print(self.esp.next_line)
         
 
     def initTasks(self):
