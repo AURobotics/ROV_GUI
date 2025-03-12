@@ -29,6 +29,7 @@ class Controller:
         self._gamepad = None
         self._gamepad_guid = None
         self._type = None
+        pygame.event.pump()
         self._refresh_gamepads()
         self._send_payload = payload_callback
         self._killswitch = False

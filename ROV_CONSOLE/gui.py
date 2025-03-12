@@ -341,6 +341,8 @@ class MainWindow(QMainWindow):
             reset_esp = port_menu.addAction('Reset ESP')
             reset_esp.triggered.connect(self.esp.reset)
 
+        if not self.controller.gamepads:
+            return
         controller_menu = QMenu("Controller", self)
         self.menu_bar.addMenu(controller_menu)
         for gp in self.controller.gamepads:
