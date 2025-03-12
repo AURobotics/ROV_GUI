@@ -10,12 +10,12 @@ class Camera:
         self._cam = cv2.VideoCapture(camera_fd)
         self._no_frame = cv2.imread(NO_VIDEO_INDICATOR)
         self._frame = self._no_frame
-        self._alive = True
+        self._killswitch = False
         self._frame_thread = Thread(target=self._frame_loop, daemon=False)
         self._frame_thread.start()
 
     def _frame_loop(self):
-        while self._alive:
+        while not self._killswitch:
             if self._cam.isOpened():
                 _, f = self._cam.read()
                 if _:
@@ -29,7 +29,7 @@ class Camera:
         return self._frame
 
     def discard(self):
-        self._alive = False
+        self._killswitch = True
         if self._frame_thread.is_alive():
             self._frame_thread.join()
         if self._cam.isOpened():
