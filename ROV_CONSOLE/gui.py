@@ -1,11 +1,9 @@
-import sys, random
-import threading
+import random
 from .controlling import Controller
 from .vision import Camera
 from .esp32 import ESP32
 
 from PySide6.QtWidgets import (
-    QApplication,
     QMainWindow,
     QLabel,
     QWidget,
@@ -22,25 +20,18 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QImage,
     QPixmap,
-    QFont,
     QPainter,
     QColor,
     QPen,
     QBrush
 )
 from PySide6.QtCore import (
-    QThread,
-    Signal,
     QTimer,
     Qt
 )
 from .controller_widget import ControllerDisplay
-
-import serial.tools.list_ports
-import serial
 from functools import partial
 import requests
-import subprocess
 
 RASPBERY_PI_IP = "192.168.1.2"
 
@@ -49,10 +40,10 @@ RASPBERY_PI_IP = "192.168.1.2"
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
-        self._cam = Camera(cam)
+        self.cam = Camera(cam)
 
     def update(self):
-            frame = self._cam.frame
+            frame = self.cam.frame
             q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
             self.setPixmap(QPixmap.fromImage(q_image))
 
@@ -239,14 +230,7 @@ class ScriptWidget(QWidget):
 
     def runScript(self):
         print(self.desc)
-        
-class ControllerWidget(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.controller_display = ControllerDisplay()
-        layout = QVBoxLayout()
-        layout.addWidget(self.controller_display)
-        self.setLayout(layout)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -256,15 +240,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("AU Robotics ROV GUI")
 
         self.state = self.windowState()
-
-        self.initUI()
-
         self.controller = Controller()
         self.esp = ESP32()
+        self.initUI()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.updateFrame)
         self.timer.start(15)
+
 
     def initUI(self):
         central_widget = QWidget()
@@ -291,11 +274,12 @@ class MainWindow(QMainWindow):
         else:
             self.rightCameraWidget = CameraWidget(self, 2)
         self.orientationsWidget = OrientationsWidget(self)
-        self.controllerWidget = ControllerWidget(self)
+        self.controllerWidget = ControllerDisplay(self.controller)
         self.thrustersWidget = ThrustersWidget(self)
         self.tasksWidget = QScrollArea(self)
         self.scriptsWidget = QScrollArea(self)
 
+        self.menu_bar = self.menuBar()
         self.initTasks()
         self.initScripts()
         
@@ -335,42 +319,46 @@ class MainWindow(QMainWindow):
         
     
     def createMenuBar(self):
-
-        menuBar = self.menuBar()
-        #  Clear existing menus
-        menuBar.clear()
-        # Creating menus using a QMenu object
-        fileMenu = QMenu("Serial Port", self)
-        menuBar.addMenu(fileMenu)
+        self.menu_bar.clear()
+        port_menu = QMenu("Serial Port", self)
+        self.menu_bar.addMenu(port_menu)
         for i in self.esp.available_ports:
-            port_selected = fileMenu.addAction(f"{i}")
-            port_selected.setCheckable(True)
-            port_selected.triggered.connect(partial(self.portSelected, i))
-        fileMenu.addSeparator()
-        manual_port_selection = fileMenu.addAction('Manual Port Selection')
+            port_sel = port_menu.addAction(f"{i}")
+            port_sel.setCheckable(True)
+            if i == self.esp.port:
+                port_sel.setChecked(True)
+            port_sel.triggered.connect(partial(self.toggle_port, i))
+        port_menu.addSeparator()
+        manual_port_selection = port_menu.addAction('Manual Port Selection')
         manual_port_selection.triggered.connect(partial(self.manual_port_selection))
-        reset_esp = fileMenu.addAction('Reset ESP')
-        reset_esp.triggered.connect(partial(self.reset_esp))
+        if self.esp.connected:
+            reset_esp = port_menu.addAction('Reset ESP')
+            reset_esp.triggered.connect(self.esp.reset)
 
-    portSelected = "COM"
-    def reset_esp(self):
-        global portSelected, ESP_TOOL
-        subprocess.run(ESP_TOOL + ["--port", portSelected, "reset"])
+        controller_menu = QMenu("Controller", self)
+        self.menu_bar.addMenu(controller_menu)
+        for gp in self.controller.gamepads:
+            gp_sel = controller_menu.addAction(f"{gp}")
+            gp_sel.setCheckable(True)
+            if self.controller.gamepad == gp:
+                gp_sel.setChecked(True)
+
 
     def manual_port_selection(self):
         text, ok = QInputDialog.getText(self, "QInputDialog.getText()",
-                                        "Port or URL:", QLineEdit.EchoMode.Normal,
+                                        "Port Name (RFC2217 NOT FULLY SUPPORTED):", QLineEdit.EchoMode.Normal,
                                         "COM")
         if ok:
-            self.portSelected(text)
-    def portSelected(self, port):
-        global portSelected
-        portSelected = port
-        print(f"Selected port: {port}")
-        if self.esp.connected:
+            self.toggle_port(text)
+
+    def toggle_port(self, port):
+        if self.esp.port == port:
             self.esp.disconnect()
-        self.esp.connect(port)
-        self.controller.payload_callback = self.esp.send
+            self.controller.payload_callback = None
+        else:
+            print(f"Selected port: {port}")
+            self.esp.connect(port)
+            self.controller.payload_callback = self.esp.send
         
 
     def updateFrame(self):
@@ -426,10 +414,3 @@ class MainWindow(QMainWindow):
         scriptsScrollLayout.addWidget(ScriptWidget("Script 13"))
 
         self.scriptsWidget.setWidget(scriptsContainer)
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    mainWindow = MainWindow()
-    mainWindow.show()
-    sys.exit(app.exec())

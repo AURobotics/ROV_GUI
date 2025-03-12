@@ -3,7 +3,11 @@ import sys
 from .gui import MainWindow
 
 def main():
-    app = QApplication()
+    app = QApplication(sys.argv)
     main_window = MainWindow()
-    main_window.show()
-    sys.exit(app.exec())
+    ret = app.exec()
+    main_window.leftCameraWidget.cam.discard()
+    main_window.rightCameraWidget.cam.discard()
+    main_window.middleCameraWidget.cam.discard()
+    main_window.controller.discard()
+    sys.exit(ret)
