@@ -2,8 +2,8 @@ import cv2
 from threading import Thread
 from time import sleep
 
-
-NO_VIDEO_INDICATOR = __file__[:__file__.rfind('/')][:__file__.rfind('\\')] + '/assets/novideo.jpeg'
+from os import path
+NO_VIDEO_INDICATOR = path.join(path.dirname(path.abspath(__file__)), 'assets', 'novideo.jpeg')
 
 class Camera:
     def __init__(self, camera_fd):
