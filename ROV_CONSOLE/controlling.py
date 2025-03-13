@@ -9,7 +9,7 @@ import pygame
 
 class BindingNames(dict[str:list[str]], Enum):
     DS4 = {'buttons': ['CROSS', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'SHARE', 'PS', 'OPTIONS', 'L3', 'R3', 'L1', 'R1', 'D-UP', 'D-DOWN',
-           'D-LEFT', 'D-RIGHT', 'TOUCHPAD'], 'axes': ['LS-H', 'LS-V', 'RS-H', 'RS-V', 'L2', 'R2']}
+           'D-LEFT', 'D-RIGHT', 'TOUCHPAD'], 'axes': ['LS-H', 'LS-V', 'RS-H', 'RS-V'], 'triggers': ['L2', 'R2']}
 
 class GamepadTypes(StrEnum):
     DS4 = 'PS4 Controller'
@@ -22,7 +22,7 @@ class Controller:
     _gamepad_guid:           str | None
     _send_payload:           Callable[[Any], None] | None
     _emit_connection_change: Callable[[], None]
-    _STICK_DEADZONE = 30
+    _STICK_DEADZONE = 0.12
 
     def __init__(self, payload_callback = None) -> None:
         pygame.init()
@@ -120,10 +120,10 @@ class Controller:
                 continue
 
             buttons = { k:self._gamepad.get_button(i) for i,k in enumerate(BindingNames[self._type]['buttons']) }
-            axes = { a:self._gamepad.get_axis(i) for i, a in enumerate(BindingNames[self._type]['axes']) }
-            axes['L2'] = (axes['L2'] + 1) / 2
-            axes['R2'] = (axes['R2'] + 1) / 2
-            self._bindings_state = {**buttons, **axes}
+            axes = { a:self._gamepad.get_axis(i) - self._STICK_DEADZONE for i, a in enumerate(BindingNames[self._type]['axes']) }
+            triggers = { t:(self._gamepad.get_axis(i+len(BindingNames[self._type]['axes'])) + 1)/2
+                         for i, t in enumerate(BindingNames[self._type]['triggers']) }
+            self._bindings_state = {**buttons, **axes, **triggers}
 
             if self._send_payload is None:
                 continue
@@ -136,12 +136,9 @@ class Controller:
             # R2 - Axis 5 (+1 then / 2): climb
             # Climb total value: R2 - L2
             signed_payload = [int(-254 * self._bindings_state['LS-V']), int(254 * self._bindings_state['LS-H']),
-                              int(-254 * self._bindings_state['RS-V']), int(254 * self._bindings_state['RS-H'])]
+                              int(-254 * self._bindings_state['RS-V']), int(254 * self._bindings_state['RS-H']),
+                              int(254 * (self._bindings_state['R2'] - self._bindings_state['L2'] + 1) )]
 
-            # Apply Deadzone
-            signed_payload = [direction if abs(direction) > self._STICK_DEADZONE else 0 for direction in signed_payload]
-
-            signed_payload.append(int(254 * (self._bindings_state['R2'] - self._bindings_state['L2'] + 1) ))
             thruster_payload = [abs(byte) for byte in signed_payload]
             sign_byte = 0
             for i, byte in enumerate(signed_payload):
