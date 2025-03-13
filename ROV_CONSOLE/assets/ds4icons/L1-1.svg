@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">
+  <!-- Generator: Adobe Illustrator 29.1.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 142)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #2a2a2a;
+      }
+
+      .st1, .st2 {
+        fill: none;
+      }
+
+      .st2 {
+        stroke: #fff;
+        stroke-width: 4px;
+      }
+
+      .st3 {
+        fill: #404040;
+      }
+
+      .st4 {
+        fill: #fff;
+        isolation: isolate;
+        opacity: .5;
+      }
+
+      .st5 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="st1" width="120" height="120"/>
+    </clipPath>
+  </defs>
+  <g class="st5">
+    <g id="Button_-_PS_L1_2">
+      <g id="Rectangle_49">
+        <path class="st0" d="M72,90h-26c-18.8,0-34-15.2-34-34v-22c0-2.2,1.8-4,4-4h86c2.2,0,4,1.8,4,4v22c0,18.8-15.2,34-34,34Z"/>
+        <path class="st2" d="M72,92h-26c-19.9,0-36-16.1-36-36v-22c0-3.3,2.7-6,6-6h86c3.3,0,6,2.7,6,6v22c0,19.9-16.1,36-36,36Z"/>
+      </g>
+      <path id="Rectangle_50" class="st3" d="M72,90h-22c-18.8,0-34-15.2-34-34v-18c0-2.2,1.8-4,4-4h82c2.2,0,4,1.8,4,4v18c0,18.8-15.2,34-34,34Z"/>
+      <path id="Rectangle_52" class="st1" d="M76,86h-22c-16.6,0-30-13.4-30-30v-14c0-2.2,1.8-4,4-4h74c2.2,0,4,1.8,4,4v14c0,16.6-13.4,30-30,30Z"/>
+      <path id="Path_80" class="st4" d="M55.4,66.3h6.8v3.9h-12s0-21.2,0-21.2h5.1v17.3h.1ZM63.2,53.8v-4.8h8.6v21.2h-5.4s0-16.4,0-16.4c0,0-3.2,0-3.2,0Z"/>
+    </g>
+  </g>
+</svg>
