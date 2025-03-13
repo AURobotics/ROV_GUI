@@ -1,211 +1,185 @@
-import pygame
-import sys
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel
+from PySide6.QtWidgets import QWidget, QPushButton, QLabel
 from PySide6.QtCore import QTimer, QSize
 from PySide6.QtGui import QIcon
-
 import os
-icons_path = os.path.realpath(__file__)
-icons_path = icons_path[:icons_path.rfind('/')]
-icons_path = icons_path[:icons_path.rfind('\\')]
-icons_path = icons_path + '/icons'
+_ = os.path.dirname(os.path.abspath(__file__))
+ICONS_PATH = os.path.join(_, 'assets', 'ds4icons')
+DS4_ICONS = {f[:f.find('.')]:QIcon(os.path.join(ICONS_PATH, f)) for f in os.listdir(ICONS_PATH) if os.path.isfile(os.path.join(ICONS_PATH, f))}
+
 class ControllerDisplay(QWidget):
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
 
-        self.circle = QPushButton(self)
-        self.circle.setObjectName("circle")
-        self.circle.setIcon(QIcon(f'{icons_path}/Button - PS Circle White 1.png'))
-        self.circle.setIconSize(QSize(60, 60))  # Set the icon size
-        self.circle.setStyleSheet("border: none;")  # Remove the button border
-        self.circle.move(450, 175)
+        self.button_scheme = {
+            'CIRCLE': {
+                'size': QSize(50, 50),
+                'icons': ('CIRCLE', 'CIRCLE-1'),
+                'position': (410, 145)
+            },
+            'CROSS':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('CROSS', 'CROSS-1'),
+                    'position': (370, 185)
+                },
+            'SQUARE':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('SQUARE', 'SQUARE-1'),
+                    'position': (330, 145)
+                },
+            'TRIANGLE':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('TRIANGLE', 'TRIANGLE-1'),
+                    'position': (370, 105)
+                },
+            'D-UP':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('D-UP', 'D-UP-1'),
+                    'position': (40, 105)
+                },
+            'D-DOWN':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('D-DOWN', 'D-DOWN-1'),
+                    'position': (40, 185)
+                },
+            'D-LEFT':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('D-LEFT', 'D-LEFT-1'),
+                    'position': (0, 145)
+                },
+            'D-RIGHT':
+                {
+                    'size': QSize(50, 50),
+                    'icons': ('D-RIGHT', 'D-RIGHT-1'),
+                    'position': (80, 145)
+                },
+            'L1':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('L1', 'L1-1'),
+                    'position': (0,40)
+                },
+            'L2':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('L2', 'L2-1'),
+                    'position': (0,0)
+                },
+            'R1':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('R1', 'R1-1'),
+                    'position': (410, 40)
+                },
+            'R2':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('R2', 'R2-1'),
+                    'position': (410, 0)
+                },
+            'LS':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('STICK-BASE', 'STICK-BASE'),
+                    'position': (145, 190)
+                },
+            'RS':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('STICK-BASE', 'STICK-BASE'),
+                    'position': (265, 190)
+                },
+            'L3':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('LS', 'L3'),
+                    'position': (145, 190)
+                },
+            'R3':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('RS', 'R3'),
+                    'position': (265, 190)
+                },
+            'PS':
+                {
+                    'size': QSize(30,30),
+                    'icons': ('PS', 'PS-1'),
+                    'position': (225, 230)
+                },
+            'TOUCHPAD':
+                {
+                    'size': QSize(300,150),
+                    'icons': ('TOUCHPAD', 'TOUCHPAD-1'),
+                    'position': (85, 0)
+                },
+            'SHARE':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('SHARE', 'SHARE-1'),
+                    'position': (100, 0)
+                },
+            'OPTIONS':
+                {
+                    'size': QSize(70,70),
+                    'icons': ('OPTIONS', 'OPTIONS-1'),
+                    'position': (300, 0)
+                }
+        }
 
-        self.cross = QPushButton(self)
-        self.cross.setObjectName("cross")
-        self.cross.setIcon(QIcon(f'{icons_path}/Button - PS Cross White 1.png'))
-        self.cross.setIconSize(QSize(60, 60))  # Set the icon size
-        self.cross.setStyleSheet("border: none;")  # Remove the button border
-        self.cross.move(400, 225)
+        self.buttons = {}
+        for b in self.button_scheme:
+            button = QPushButton(self)
+            button.setObjectName(b)
+            button.setIcon(DS4_ICONS[self.button_scheme[b]['icons'][0]])
+            pos = self.button_scheme[b]['position']
+            button.move(pos[0], pos[1])
+            button.setIconSize(self.button_scheme[b]['size'])
+            button.setStyleSheet("border: none;")
+            self.buttons[b] = button
 
+        self.no_controller_label = QLabel('Please connect a controller.', self)
+        self.no_controller_label.move(205,105)
+        self.no_controller_label.setVisible(False)
 
-        self.square = QPushButton(self)
-        self.square.setObjectName("square")
-        self.square.setIcon(QIcon(f'{icons_path}/Button - PS Square White 1.png'))
-        self.square.setIconSize(QSize(60, 60))  # Set the icon size
-        self.square.setStyleSheet("border: none;")  # Remove the button border
-        self.square.move(350, 175)
+        self.controller = controller
+        self.reset_flag = False
 
-
-        self.triangle = QPushButton(self)
-        self.triangle.setObjectName("triangle")
-        self.triangle.setIcon(QIcon(f'{icons_path}/Button - PS Triangle White 1.png'))
-        self.triangle.setIconSize(QSize(60, 60))  # Set the icon size
-        self.triangle.setStyleSheet("border: none;")  # Remove the button border
-        self.triangle.move(400, 125)
-
-        self.arrow = QPushButton(self)
-        self.arrow.setObjectName("arrow")
-        self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows.png'))
-        self.arrow.setIconSize(QSize(125, 125))  # Set the icon size
-        self.arrow.setStyleSheet("border: none;")  # Remove the button border
-        self.arrow.move(50, 160)
-
-        self.L1 = QPushButton(self)
-        self.L1.setObjectName("L1")
-        self.L1.setIcon(QIcon(f'{icons_path}/Button - PS L1.png'))
-        self.L1.setIconSize(QSize(70, 70))  # Set the icon size
-        self.L1.setStyleSheet("border: none;")  # Remove the button border
-        self.L1.move(80, 20)
-
-        self.L2 = QPushButton(self)
-        self.L2.setObjectName("L2")
-        self.L2.setIcon(QIcon(f'{icons_path}/Button - PS L2.png'))
-        self.L2.setIconSize(QSize(70, 70))  # Set the icon size
-        self.L2.setStyleSheet("border: none;")  # Remove the button border
-        self.L2.move(80, 60)
-
-        self.R1 = QPushButton(self)
-        self.R1.setObjectName("R1")
-        self.R1.setIcon(QIcon(f'{icons_path}/Button - PS R1.png'))
-        self.R1.setIconSize(QSize(70, 70))  # Set the icon size
-        self.R1.setStyleSheet("border: none;")  # Remove the button border
-        self.R1.move(400, 20)
-
-        self.R2 = QPushButton(self)
-        self.R2.setObjectName("R2")
-        self.R2.setIcon(QIcon(f'{icons_path}/Button - PS R2.png'))
-        self.R2.setIconSize(QSize(70, 70))  # Set the icon size
-        self.R2.setStyleSheet("border: none;")  # Remove the button border
-        self.R2.move(400, 60)
-
-        self.js_left = QPushButton(self)
-        self.js_left.setObjectName("js_left")
-        self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank.png'))
-        self.js_left.setIconSize(QSize(70, 70))  # Set the icon size
-        self.js_left.setStyleSheet("border: none;")  # Remove the button border
-        self.js_left.move(200, 250)
-
-        self.js_right = QPushButton(self)
-        self.js_right.setObjectName("js_right")
-        self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank.png'))
-        self.js_right.setIconSize(QSize(70, 70))  # Set the icon size
-        self.js_right.setStyleSheet("border: none;")  # Remove the button border
-        self.js_right.move(300, 250)
-
-        self.status_label = QLabel("Controller Status", self)
-        self.status_label.move(10, 10)
-        # Initialize pygame and joystick
-        pygame.init()
-        pygame.joystick.init()
-
-        if pygame.joystick.get_count() == 0:
-            self.status_label.setText("No joystick connected")
-        else:
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
-            self.status_label.setText(f"Joystick connected: {self.joystick.get_name()}")
-
-        # Update joystick status every 100 ms
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_joystick_status)
-        self.timer.start(100)
+        self.timer.timeout.connect(self.update)
+        self.timer.start(50)
 
-    def update_joystick_status(self):
-        pygame.event.pump()  # Process events
+    def update(self):
+        if not self.controller.connected:
+            if not self.reset_flag:
+                self.reset_flag = True
+                for b in self.buttons:
+                    self.buttons[b].setIcon(DS4_ICONS[self.button_scheme[b]['icons'][0]])
+                    pos = self.button_scheme[b]['position']
+                    self.buttons[b].move(pos[0], pos[1])
+                    self.buttons[b].setVisible(False)
+                    self.no_controller_label.setVisible(True)
+            return
 
-        if pygame.joystick.get_count() == 0:
-            self.status_label.setText("No joystick connected")
+        if self.reset_flag:
+            for b in self.buttons:
+                self.buttons[b].setVisible(True)
+                self.no_controller_label.setVisible(False)
 
-        else:
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
-            self.status_label.setText(f"Joystick connected: {self.joystick.get_name()}")
-
-            # Update button states
-            x_button = self.joystick.get_button(0)
-            circle_button = self.joystick.get_button(1)
-            square_button = self.joystick.get_button(2)
-            triangle_button = self.joystick.get_button(3)
-            up_button = self.joystick.get_button(11)
-            # right_button = self.joystick.get_button(14)
-            # down_button = self.joystick.get_button(12)
-            # left_button = self.joystick.get_button(13)
-            L1_button = self.joystick.get_button(9)
-            R1_button = self.joystick.get_button(10)
-            # L2_button = self.joystick.get_axis(4)
-            # R2_button = self.joystick.get_axis(5)
-            js_left_x = self.joystick.get_axis(0)
-            js_left_y = self.joystick.get_axis(1)
-            # js_right_x = self.joystick.get_axis(2)
-            # js_right_y = self.joystick.get_axis(3)
-
-            if circle_button:
-                self.circle.setIcon(QIcon(f'{icons_path}/Button - PS Circle 2.svg'))
-            else:
-                self.circle.setIcon(QIcon(f'{icons_path}/Button - PS Circle White 1.png'))
-            if x_button:
-                self.cross.setIcon(QIcon(f'{icons_path}/Button - PS Cross 2.svg'))
-            else:
-                self.cross.setIcon(QIcon(f'{icons_path}/Button - PS Cross White 1.png'))
-            if square_button:
-                self.square.setIcon(QIcon(f'{icons_path}/Button - PS Square 2.svg'))
-            else:
-                self.square.setIcon(QIcon(f'{icons_path}/Button - PS Square White 1.png'))
-            if triangle_button:
-                self.triangle.setIcon(QIcon(f'{icons_path}/Button - PS Triangle 2.svg'))
-            else:
-                self.triangle.setIcon(QIcon(f'{icons_path}/Button - PS Triangle White 1.png'))
-            if up_button:
-                self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows Up.png'))
-            # elif right_button:
-            #     self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows Right.png'))
-            # elif down_button:
-            #     self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows Down.png'))
-            # elif left_button:
-            #     self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows Left.png'))
-            else:
-                self.arrow.setIcon(QIcon(f'{icons_path}/Button - PS Directional Arrows.png'))
-            if L1_button:
-                self.L1.setIcon(QIcon(f'{icons_path}/Button - PS L1 – 2.png'))
-            else:
-                self.L1.setIcon(QIcon(f'{icons_path}/Button - PS L1.png'))
-            if R1_button:
-                self.R1.setIcon(QIcon(f'{icons_path}/Button - PS R1 – 2.png'))
-            else:
-                self.R1.setIcon(QIcon(f'{icons_path}/Button - PS R1.png'))
-
-            if js_left_x > 0.5:
-                self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Right.png'))
-            elif js_left_x < -0.5:
-                self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Left.png'))
-            elif js_left_y > 0.5:
-                self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Down.png'))
-            elif js_left_y < -0.5:
-                self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Up.png'))
-            else:
-                self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank.png'))
-
-            # if js_right_x > 0.5:
-            #     self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Down.png'))
-            # elif js_right_x < -0.5:
-            #     self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Up.png'))
-            # elif js_right_y > 0.5:
-            #     self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Up.png'))
-            # elif js_right_y < -0.5:
-            #     self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank Down.png'))
-            # else:
-            #     self.js_right.setIcon(QIcon(f'{icons_path}/Button - PS Analogue Blank.png'))
-            # if L2_button:
-            #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS L2.png'))
-            # else:
-            #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS L2 – 2.png'))
-            # if R2_button:
-            #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS R2.png'))
-            # else:
-            #     self.js_left.setIcon(QIcon(f'{icons_path}/Button - PS R2 – 2.png'))
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    controller_sim = PS4ControllerSimulation()
-    controller_sim.show()
-    sys.exit(app.exec())
+        self.reset_flag = False
+        states = self.controller.bindings_state
+        for b in states:
+            v = states[b]
+            if b in self.buttons:
+                self.buttons[b].setIcon(DS4_ICONS[self.button_scheme[b]['icons'][v != 0]])
+        ls_x = states['LS-H'] * 10 + int(self.button_scheme['L3']['position'][0])
+        ls_y = states['LS-V'] * 10 + int(self.button_scheme['L3']['position'][1])
+        rs_x = states['RS-H'] * 10 + int(self.button_scheme['R3']['position'][0])
+        rs_y = states['RS-V'] * 10 + int(self.button_scheme['R3']['position'][1])
+        self.buttons['L3'].move(ls_x, ls_y)
+        self.buttons['R3'].move(rs_x, rs_y)
