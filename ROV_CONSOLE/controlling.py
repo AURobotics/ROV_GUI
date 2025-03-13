@@ -30,9 +30,7 @@ class Controller:
         self._gamepad_guid = None
         self._type = None
         pygame.event.pump()
-        self._refresh_gamepads()
-        if self._gamepads:
-            self._connect(0)
+        self._refresh_gamepads(connect_if_only_device=True)
         self._send_payload = payload_callback
         self._killswitch = False
         self._bindings_state = {}
@@ -54,7 +52,7 @@ class Controller:
             if t.value == self._gamepad.get_name():
                 self._type = t.name
 
-    def _refresh_gamepads(self) -> None:
+    def _refresh_gamepads(self, connect_if_only_device=False) -> None:
         gamepad_count = pygame.joystick.get_count()
         if gamepad_count == 0:
             self._disconnect()
@@ -64,8 +62,9 @@ class Controller:
             if gamepad.get_guid() == self._gamepad_guid:
                 self._gamepad = gamepad
                 return
-        if self._gamepads[0].get_name() not in GamepadTypes:
-            self._disconnect()
+        if connect_if_only_device:
+            self._connect(0)
+
 
     @property
     def bindings_state(self):
@@ -109,16 +108,21 @@ class Controller:
         toggles_cooldown = [0, 0, 0] # Debounce for toggleable options
         while not self._killswitch:
             time.sleep(0.015)  # attempt at synchronization with main thread which may print output
-            for event in pygame.event.get():
-                if event.type == pygame.JOYDEVICEADDED:
-                    self._refresh_gamepads()
-                if event.type == pygame.JOYDEVICEREMOVED:
-                    self._refresh_gamepads()
+            try:
+                for event in pygame.event.get():
+                    if event.type == pygame.JOYDEVICEADDED:
+                        self._refresh_gamepads(connect_if_only_device=True)
+                    if event.type == pygame.JOYDEVICEREMOVED:
+                        self._refresh_gamepads()
+            except SystemError:
+                pass
             if self._gamepad is None:
                 continue
 
             buttons = { k:self._gamepad.get_button(i) for i,k in enumerate(BindingNames[self._type]['buttons']) }
             axes = { a:self._gamepad.get_axis(i) for i, a in enumerate(BindingNames[self._type]['axes']) }
+            axes['L2'] = (axes['L2'] + 1) / 2
+            axes['R2'] = (axes['R2'] + 1) / 2
             self._bindings_state = {**buttons, **axes}
 
             if self._send_payload is None:
@@ -130,14 +134,14 @@ class Controller:
             # RStick - Axis 3 (Vertical): Tilt up or down
             # L2 - Axis 4 (+1 then /2): descend
             # R2 - Axis 5 (+1 then / 2): climb
-            # Climb total value: (R2 + 1) / 2 - (L2 + 1) / 2
+            # Climb total value: R2 - L2
             signed_payload = [int(-254 * self._bindings_state['LS-V']), int(254 * self._bindings_state['LS-H']),
                               int(-254 * self._bindings_state['RS-V']), int(254 * self._bindings_state['RS-H'])]
 
             # Apply Deadzone
             signed_payload = [direction if abs(direction) > self._STICK_DEADZONE else 0 for direction in signed_payload]
 
-            signed_payload.append(int(254 * ( ((self._bindings_state['R2'] + 1)/2) - ((self._bindings_state['L2'] + 1)/2) )))
+            signed_payload.append(int(254 * (self._bindings_state['R2'] - self._bindings_state['L2'] + 1) ))
             thruster_payload = [abs(byte) for byte in signed_payload]
             sign_byte = 0
             for i, byte in enumerate(signed_payload):
