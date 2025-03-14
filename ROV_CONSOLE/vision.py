@@ -11,7 +11,7 @@ class Camera:
         self._no_frame = cv2.imread(NO_VIDEO_INDICATOR)
         self._frame = self._no_frame
         self._killswitch = False
-        self._frame_thread = Thread(target=self._frame_loop, daemon=False)
+        self._frame_thread = Thread(target=self._frame_loop)
         self._frame_thread.start()
 
     def _frame_loop(self):
