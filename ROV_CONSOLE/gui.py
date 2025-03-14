@@ -23,11 +23,11 @@ from PySide6.QtGui import (
     QPainter,
     QColor,
     QPen,
-    QBrush
+    QBrush, QIcon
 )
 from PySide6.QtCore import (
     QTimer,
-    Qt
+    Qt, QSize
 )
 from .controller_widget import ControllerDisplay
 from functools import partial
@@ -35,16 +35,38 @@ import requests
 
 RASPBERY_PI_IP = "192.168.1.2"
 
+from os import path
+FLIP_VIDEO_HORIZONTAL = path.join(path.dirname(path.abspath(__file__)), 'assets', 'flip-horizontal.webp')
+
 
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
         self.cam = Camera(cam)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.flip_horizontal = QPushButton(self)
+        self.flip_horizontal.setIcon(QIcon(FLIP_VIDEO_HORIZONTAL))
+        self.flip_horizontal.setIconSize(QSize(24, 24))
+        self.flip_horizontal.setVisible(False)
+        self.flip_horizontal.clicked.connect(self.toggle_flip_h)
+        self.h_mirror = False
+        self.v_mirror = False
+
+    def toggle_flip_h(self):
+        self.h_mirror = not self.h_mirror
+
+    def enterEvent(self, event):
+        self.flip_horizontal.move(self.width() // 2, self.height() - self.height() // 10)
+        self.flip_horizontal.setVisible(True)
+        self.flip_horizontal.raise_()
+
+    def leaveEvent(self, event):
+        self.flip_horizontal.setVisible(False)
 
     def update(self):
-            frame = self.cam.frame
-            q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height())
-            self.setPixmap(QPixmap.fromImage(q_image))
+        frame = self.cam.frame
+        q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888).smoothScaled(self.width(), self.height()).mirrored(horizontally=self.h_mirror, vertically=self.v_mirror)
+        self.setPixmap(QPixmap.fromImage(q_image))
 
 
 class OrientationsWidget(QWidget):
