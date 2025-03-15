@@ -56,7 +56,7 @@ def doit(img):
         ref_img = img.copy()
 
         # print (ref_pts)
-
+        global ref_pts, pixel_ref_len, ref_choose_flag
         for pt in ref_pts:
             cv2.circle(ref_img, pt, 3, (0, 255, 0), -1)
 
@@ -80,7 +80,7 @@ def doit(img):
             break
 
     while (1):
-
+        global target_pts
         target_img = ref_img.copy()
 
         cv2.imshow("Choose Lengths To Measure", target_img)
