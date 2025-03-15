@@ -1,6 +1,8 @@
 import cv2
 from threading import Thread
 from time import sleep
+from multiprocessing import Process
+from .measurement_temp import doit as measurement
 
 from os import path
 NO_VIDEO_INDICATOR = path.join(path.dirname(path.abspath(__file__)), 'assets', 'novideo.jpeg')
@@ -27,6 +29,11 @@ class Camera:
     @property
     def frame(self):
         return self._frame
+
+    def launch_length_measurement(self):
+        p = Process(target=measurement, args=(self._frame,))
+        p.start()
+
 
     def discard(self):
         self._killswitch = True
