@@ -15,13 +15,16 @@ class GamepadTypes(StrEnum):
     DS4 = 'PS4 Controller'
 
 class Controller:
-    """Manages gamepad selection, gamepad bindings and communication over a chosen serial port"""
+    """Manages gamepad connection, gamepad selection, and gamepad bindings"""
 
     _gamepads:               list[pygame.joystick.JoystickType]
     _gamepad:                pygame.joystick.JoystickType | None
+    _type:                   str | None
     _gamepad_guid:           str | None
+    _bindings_state:         dict[str, int|float]
+    _killswitch:             bool
+    _handler_thread:         Thread
     _send_payload:           Callable[[Any], None] | None
-    _emit_connection_change: Callable[[], None]
     _STICK_DEADZONE = 0.12
 
     def __init__(self, payload_callback = None) -> None:
