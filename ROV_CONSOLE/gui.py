@@ -36,32 +36,50 @@ import requests
 RASPBERY_PI_IP = "192.168.1.2"
 
 from os import path
-FLIP_VIDEO_HORIZONTAL = path.join(path.dirname(path.abspath(__file__)), 'assets', 'flip-horizontal.webp')
-
+_ = path.join(path.dirname(path.abspath(__file__)), 'assets')
+camera_toolbar_icons = {
+    'hflip': QIcon(path.join(_, 'flip-horizontal.svg')),
+    'vflip': QIcon(path.join(_, 'flip-vertical.svg')),
+    'measurement': QIcon(path.join(_, 'ruler.svg')),
+    'pano': QIcon(path.join(_, 'pano.svg'))
+}
 
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
         self.cam = Camera(cam)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
-        self.flip_horizontal = QPushButton(self)
-        self.flip_horizontal.setIcon(QIcon(FLIP_VIDEO_HORIZONTAL))
-        self.flip_horizontal.setIconSize(QSize(24, 24))
-        self.flip_horizontal.setVisible(False)
-        self.flip_horizontal.clicked.connect(self.toggle_flip_h)
+        self.bottom_buttons = {}
+        for b in camera_toolbar_icons:
+            pb = QPushButton(self)
+            pb.setIcon(camera_toolbar_icons[b])
+            pb.setIconSize(QSize(24, 24))
+            pb.setVisible(False)
+            self.bottom_buttons[b] = pb
         self.h_mirror = False
         self.v_mirror = False
+        self.bottom_buttons['hflip'].clicked.connect(self.hflip)
+        self.bottom_buttons['vflip'].clicked.connect(self.vflip)
+        self.bottom_buttons['measurement'].clicked.connect(self.cam.launch_length_measurement)
 
-    def toggle_flip_h(self):
+    def hflip(self):
         self.h_mirror = not self.h_mirror
 
+    def vflip(self):
+        self.v_mirror = not self.v_mirror
+
     def enterEvent(self, event):
-        self.flip_horizontal.move(self.width() // 2, self.height() - self.height() // 10)
-        self.flip_horizontal.setVisible(True)
-        self.flip_horizontal.raise_()
+        w = self.width() // 4
+        h = self.height() - self.height() // 10
+        for b in self.bottom_buttons.values():
+            b.move(w, h)
+            b.setVisible(True)
+            b.raise_()
+            w += 48
 
     def leaveEvent(self, event):
-        self.flip_horizontal.setVisible(False)
+        for b in self.bottom_buttons.values():
+            b.setVisible(False)
 
     def update(self):
         frame = self.cam.frame
