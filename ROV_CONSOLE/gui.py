@@ -290,25 +290,6 @@ class ThrustersWidget(QWidget):
         self.update()
 
 
-class ScriptWidget(QWidget):
-    def __init__(self, desc):
-        super().__init__()
-
-        self.desc = desc
-
-        hbox = QHBoxLayout(self)
-
-        hbox.addWidget(QLabel(self.desc))
-
-        self.button = QPushButton("Run", self)
-        self.button.clicked.connect(self.runScript)
-
-        hbox.addWidget(self.button)
-
-    def runScript(self):
-        print(self.desc)
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -355,11 +336,9 @@ class MainWindow(QMainWindow):
         self.controllerWidget = ControllerDisplay(self.controller)
         self.thrustersWidget = ThrustersWidget(self)
         self.tasksWidget = QScrollArea(self)
-        self.scriptsWidget = QScrollArea(self)
 
         self.menu_bar = self.menuBar()
         self.initTasks()
-        self.initScripts()
 
         grid = QGridLayout()
 
@@ -389,8 +368,6 @@ class MainWindow(QMainWindow):
 
         grid.addWidget(self.tasksWidget, 2, 1, 1, 1)
         grid.addWidget(self.controllerWidget, 3, 1, 1, 1)
-
-        grid.addWidget(self.scriptsWidget, 2, 2, 1, 1)
         grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
 
         central_widget.setLayout(grid)
@@ -489,23 +466,3 @@ class MainWindow(QMainWindow):
         tasksScrollLayout.addWidget(QCheckBox("Task 13"))
 
         self.tasksWidget.setWidget(tasksContainer)
-
-    def initScripts(self):
-        scriptsContainer = QWidget()
-        scriptsScrollLayout = QVBoxLayout(scriptsContainer)
-
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 1"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 2"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 3"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 4"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 5"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 6"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 7"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 8"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 9"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 10"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 11"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 12"))
-        scriptsScrollLayout.addWidget(ScriptWidget("Script 13"))
-
-        self.scriptsWidget.setWidget(scriptsContainer)
