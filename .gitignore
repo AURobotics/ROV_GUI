@@ -1,8 +1,9 @@
+# Python-related ignores
+
 .venv/
-/pyqt-env
-Notes.txt
-*.PNG
-
+pyqt-env/
 venv/
-
 */__pycache__/
+
+# IDE-related ignores
+.idea/
