@@ -1,3 +1,13 @@
+"""
+    Wrapper for PyGame with an RAII-conforming class 'Controller'.
+    Manages the following:
+       - Choosing one or none of the currently connected gamepads
+       - Regularly presenting the state of the keybindings
+       - Regularly checking for, presenting and managing connection changes
+       - Publishing a human-readable interface for reading the state of keybindings
+       - TODO: support different types/ brands of gamepads - currently supports PS4/DS4 only
+"""
+
 import time
 from collections.abc import Callable
 from functools import reduce
@@ -7,7 +17,7 @@ from threading import Thread
 import struct
 import pygame
 
-class BindingNames(dict[str:list[str]], Enum):
+class BindingNames(dict[str,list[str]], Enum):
     DS4 = {'buttons': ['CROSS', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'SHARE', 'PS', 'OPTIONS', 'L3', 'R3', 'L1', 'R1', 'D-UP', 'D-DOWN',
            'D-LEFT', 'D-RIGHT', 'TOUCHPAD'], 'axes': ['LS-H', 'LS-V', 'RS-H', 'RS-V'], 'triggers': ['L2', 'R2']}
 
@@ -118,8 +128,9 @@ class Controller:
                             self._refresh_gamepads(connect_if_only_device=True)
                         if event.type == pygame.JOYDEVICEREMOVED:
                             self._refresh_gamepads()
-                except SystemError:
-                    pass
+                except Exception:
+                    if self._killswitch:
+                        break
                 if self._gamepad is None:
                     continue
 
