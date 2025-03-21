@@ -1,13 +1,16 @@
 import subprocess
 import threading
-
 import serial
 import serial.tools.list_ports
+from sys import stderr
 
 ESP_TOOL = ["python", "-m", "esptool"]
 
 class ESP32:
     _BAUDRATE: int = 115200
+    _serial:   serial.Serial
+    _port_rfc: bool
+
     def __init__(self):
         self._serial = serial.Serial(port=None, baudrate=self._BAUDRATE)
         self._resetting = False
@@ -58,7 +61,7 @@ class ESP32:
     def connect(self, port: str) -> None:
         self._serial.close()
         if 'rfc2217://' in port and not self._port_rfc:
-            print('Ports over RFC is not fully supported, disconnects will not be detected!')
+            print('Ports over RFC is not fully supported, disconnects will not be detected!', stderr)
             self._serial = serial.serial_for_url(port, baudrate=self._BAUDRATE)
             self._port_rfc = True
             return
