@@ -57,16 +57,22 @@ class MeasurementWindow(QWidget):
         pix = self._canvas.pixmap()
         point_x = (point.x() * pix.width()) // self._canvas.width()
         point_y = (point.y() * pix.height()) // self._canvas.height()
-        if self._ref_p1 is None:
-            self._ref_p1 = (point_x, point_y)
-        elif self._ref_p2 is None:
-            self._ref_p2 = (point_x, point_y)
-            self._ref_length = 0
-            pix_copy = pix.copy()
         painter = QPainter(pix)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         pen = QPen(Qt.GlobalColor.black, 2)
         painter.setPen(pen)
+        font = QFont()
+        font.setPixelSize(12)
+        painter.setFont(font)
+        if self._ref_p1 is None:
+            self._ref_p1 = (point_x, point_y)
+            painter.drawText(QPoint(point_x, point_y), 'R1')
+        elif self._ref_p2 is None:
+            self._ref_p2 = (point_x, point_y)
+            self._ref_length = 0
+            pix_copy = pix.copy()
+            painter.drawText(QPoint(point_x, point_y), 'R2')
+
         painter.drawPoint(QPoint(point_x, point_y))
         painter.end()
         self._canvas.setPixmap(pix)
