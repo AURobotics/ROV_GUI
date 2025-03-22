@@ -26,14 +26,14 @@ from .measurement_widget import MeasurementWindow
 
 RASPBERY_PI_IP = "192.168.1.2"
 
-from os import path
+from pathlib import Path
 
-_ = path.join(path.dirname(path.abspath(__file__)), "assets")
+ICONS_PATH = Path(__file__).resolve().parent / 'assets'
 camera_toolbar_icons = {
-    "hflip":       QIcon(path.join(_, "flip-horizontal.svg")),
-    "vflip":       QIcon(path.join(_, "flip-vertical.svg")),
-    "measurement": QIcon(path.join(_, "ruler.svg")),
-    "pano":        QIcon(path.join(_, "pano.svg")),
+    "hflip":       QIcon(str(ICONS_PATH / "flip-horizontal.svg")),
+    "vflip":       QIcon(str(ICONS_PATH / "flip-vertical.svg")),
+    "measurement": QIcon(str(ICONS_PATH / "ruler.svg")),
+    "pano":        QIcon(str(ICONS_PATH / "pano.svg")),
     }
 
 
