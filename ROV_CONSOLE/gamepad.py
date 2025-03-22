@@ -144,6 +144,7 @@ class Controller:
 
     def _handler_loop(self):
         toggles_cooldown = [0, 0, 0]  # Debounce for toggleable options
+        led_and_valves: int = 0
         try:
             while not self._killswitch:
                 time.sleep(0.015)
@@ -213,7 +214,6 @@ class Controller:
 
                 # Touchpad Click - LED: 0000 0 LED 0      0
                 # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-                led_and_valves: int = 0
                 if toggles_cooldown[0] == 0 and self._bindings_state["L1"]:
                     toggles_cooldown[0] = 15
                     led_and_valves ^= 1
