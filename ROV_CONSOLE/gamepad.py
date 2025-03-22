@@ -1,43 +1,67 @@
 """
-    Wrapper for PyGame with an RAII-conforming class 'Controller'.
-    Manages the following:
-       - Choosing one or none of the currently connected gamepads
-       - Regularly presenting the state of the keybindings
-       - Regularly checking for, presenting and managing connection changes
-       - Publishing a human-readable interface for reading the state of keybindings
-       - TODO: support different types/ brands of gamepads - currently supports PS4/DS4 only
+Wrapper for PyGame with an RAII-conforming class 'Controller'.
+Manages the following:
+   - Choosing one or none of the currently connected gamepads
+   - Regularly presenting the state of the keybindings
+   - Regularly checking for, presenting and managing connection changes
+   - Publishing a human-readable interface for reading the state of keybindings
+   - TODO: support different types/ brands of gamepads - currently supports PS4/DS4 only
 """
 
+import struct
 import time
 from collections.abc import Callable
-from functools import reduce
-from typing import Any
 from enum import Enum, StrEnum
+from functools import reduce
 from threading import Thread
-import struct
+from typing import Any
+
 import pygame
 
-class BindingNames(dict[str,list[str]], Enum):
-    DS4 = {'buttons': ['CROSS', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'SHARE', 'PS', 'OPTIONS', 'L3', 'R3', 'L1', 'R1', 'D-UP', 'D-DOWN',
-           'D-LEFT', 'D-RIGHT', 'TOUCHPAD'], 'axes': ['LS-H', 'LS-V', 'RS-H', 'RS-V'], 'triggers': ['L2', 'R2']}
+
+class BindingNames(dict[str, list[str]], Enum):
+    DS4 = {
+        "buttons": [
+            "CROSS",
+            "CIRCLE",
+            "SQUARE",
+            "TRIANGLE",
+            "SHARE",
+            "PS",
+            "OPTIONS",
+            "L3",
+            "R3",
+            "L1",
+            "R1",
+            "D-UP",
+            "D-DOWN",
+            "D-LEFT",
+            "D-RIGHT",
+            "TOUCHPAD",
+        ],
+        "axes": ["LS-H", "LS-V", "RS-H", "RS-V"],
+        "triggers": ["L2", "R2"],
+    }
+
 
 class GamepadTypes(StrEnum):
-    DS4 = 'PS4 Controller'
+    DS4 = "PS4 Controller"
+
 
 class Controller:
     """Manages gamepad connection, gamepad selection, and gamepad bindings"""
 
-    _gamepads:               list[pygame.joystick.JoystickType]
-    _gamepad:                pygame.joystick.JoystickType | None
-    _type:                   str | None
-    _gamepad_guid:           str | None
-    _bindings_state:         dict[str, int|float]
-    _killswitch:             bool
-    _handler_thread:         Thread
-    _send_payload:           Callable[[Any], None] | None
+    _gamepads: list[pygame.joystick.JoystickType]
+    _gamepad: pygame.joystick.JoystickType | None
+    _type: str | None
+    _gamepad_guid: str | None
+    _bindings_state: dict[str, int | float]
+    _killswitch: bool
+    _handler_thread: Thread
+    _send_payload: Callable[[Any], None] | None
     _STICK_DEADZONE = 0.12
 
-    def __init__(self, payload_callback = None) -> None:
+    def __init__(self, payload_callback=None) -> None:
         pygame.init()
         self._gamepad = None
         self._gamepad_guid = None
@@ -78,7 +102,6 @@ class Controller:
         if connect_if_only_device:
             self._connect(0)
 
-
     @property
     def bindings_state(self):
         return self._bindings_state
@@ -94,7 +117,9 @@ class Controller:
     @property
     def gamepads(self) -> list[str]:
         self._refresh_gamepads()
-        return [f'{gamepad.get_id()}: {gamepad.get_name()}' for gamepad in self._gamepads]
+        return [
+            f"{gamepad.get_id()}: {gamepad.get_name()}" for gamepad in self._gamepads
+        ]
 
     @property
     def connected(self):
@@ -103,11 +128,11 @@ class Controller:
     @property
     def gamepad(self) -> str | None:
         if self._gamepad is not None:
-            return f'{self._gamepad.get_id()}: {self._gamepad.get_name()}'
+            return f"{self._gamepad.get_id()}: {self._gamepad.get_name()}"
         return None
 
     @gamepad.setter
-    def gamepad(self, index: int|None) -> None:
+    def gamepad(self, index: int | None) -> None:
         if index is None or index > len(self._gamepads):
             self._disconnect()
             return
@@ -118,10 +143,11 @@ class Controller:
                 self._connect(index)
 
     def _handler_loop(self):
-        toggles_cooldown = [0, 0, 0] # Debounce for toggleable options
+        toggles_cooldown = [0, 0, 0]  # Debounce for toggleable options
+        led_and_valves: int = 0
         try:
             while not self._killswitch:
-                time.sleep(0.015)  # attempt at synchronization with main thread which may print output
+                time.sleep(0.015)
                 try:
                     for event in pygame.event.get():
                         if event.type == pygame.JOYDEVICEADDED:
@@ -134,11 +160,28 @@ class Controller:
                 if self._gamepad is None:
                     continue
 
-                buttons = {k: self._gamepad.get_button(i) for i, k in enumerate(BindingNames[self._type]['buttons'])}
-                axes = {a: self._gamepad.get_axis(i) - self._STICK_DEADZONE for i, a in
-                        enumerate(BindingNames[self._type]['axes'])}
-                triggers = {t: (self._gamepad.get_axis(i + len(BindingNames[self._type]['axes'])) + 1) / 2
-                            for i, t in enumerate(BindingNames[self._type]['triggers'])}
+                buttons = {
+                    k: self._gamepad.get_button(i)
+                    for i, k in enumerate(BindingNames[self._type]["buttons"])
+                }
+                axes = {
+                    a: (
+                        self._gamepad.get_axis(i)
+                        if abs(self._gamepad.get_axis(i)) > self._STICK_DEADZONE
+                        else 0
+                    )
+                    for i, a in enumerate(BindingNames[self._type]["axes"])
+                }
+                triggers = {
+                    t: (
+                        self._gamepad.get_axis(
+                            i + len(BindingNames[self._type]["axes"])
+                        )
+                        + 1
+                    )
+                    / 2
+                    for i, t in enumerate(BindingNames[self._type]["triggers"])
+                }
                 self._bindings_state = {**buttons, **axes, **triggers}
 
                 if self._send_payload is None:
@@ -151,9 +194,15 @@ class Controller:
                 # L2 - Axis 4 (+1 then /2): descend
                 # R2 - Axis 5 (+1 then / 2): climb
                 # Climb total value: R2 - L2
-                signed_payload = [int(-254 * self._bindings_state['LS-V']), int(254 * self._bindings_state['LS-H']),
-                                  int(-254 * self._bindings_state['RS-V']), int(254 * self._bindings_state['RS-H']),
-                                  int(254 * (self._bindings_state['R2'] - self._bindings_state['L2'] + 1))]
+                signed_payload = [
+                    int(-254 * self._bindings_state["LS-V"]),
+                    int(254 * self._bindings_state["LS-H"]),
+                    int(-254 * self._bindings_state["RS-V"]),
+                    int(254 * self._bindings_state["RS-H"]),
+                    int(
+                        254 * (self._bindings_state["R2"] - self._bindings_state["L2"])
+                    ),
+                ]
 
                 thruster_payload = [abs(byte) for byte in signed_payload]
                 sign_byte = 0
@@ -165,16 +214,15 @@ class Controller:
 
                 # Touchpad Click - LED: 0000 0 LED 0      0
                 # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-                led_and_valves = 0
-                if toggles_cooldown[0] == 0 and self._bindings_state['L1']:
+                if toggles_cooldown[0] == 0 and self._bindings_state["L1"]:
                     toggles_cooldown[0] = 15
-                    led_and_valves ^= self._bindings_state['L1']
-                if toggles_cooldown[1] == 0 and self._bindings_state['TOUCHPAD']:
+                    led_and_valves ^= 1
+                if toggles_cooldown[1] == 0 and self._bindings_state["TOUCHPAD"]:
                     toggles_cooldown[1] = 15
-                    led_and_valves ^= self._bindings_state['TOUCHPAD'] << 2
-                if toggles_cooldown[2] == 0 and self._bindings_state['R1']:
+                    led_and_valves ^= 4
+                if toggles_cooldown[2] == 0 and self._bindings_state["R1"]:
                     toggles_cooldown[2] = 15
-                    led_and_valves ^= self._bindings_state['R1'] << 1
+                    led_and_valves ^= 4
                 toggles_cooldown = [i - 1 if i > 0 else 0 for i in toggles_cooldown]
                 payload.append(led_and_valves)
 
