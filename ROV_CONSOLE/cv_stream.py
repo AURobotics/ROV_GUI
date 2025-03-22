@@ -34,7 +34,7 @@ class VideoStream:
     _frame_thread: Thread
     _killswitch: bool
 
-    def __init__(self, descriptor: int | str | None):
+    def __init__(self, descriptor: int | str | None = None):
         self._cap = cv2.VideoCapture()
         self._cap_name = None
         self._cap_index = None
@@ -162,3 +162,25 @@ class VideoStream:
             self._frame_thread.join()
         if self._cap.isOpened():
             self._cap.release()
+
+
+class VideoManager:
+    _open_streams = list[VideoStream]
+
+    def __init__(self):
+        self._open_streams = []
+
+    def new_stream(self, descriptor: int | str) -> VideoStream:
+        if type(descriptor) is int:
+            for s in self._open_streams:
+                if s.source['index'] == descriptor:
+                    return s
+            return VideoStream(descriptor)
+        elif type(descriptor) is str:
+            path = Path(descriptor).resolve()
+            if path.exists(): descriptor = path.name
+            for s in self._open_streams:
+                if s.source['name'] == descriptor:
+                    return s
+            return VideoStream(descriptor)
+        return VideoStream()
