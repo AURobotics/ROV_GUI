@@ -7,3 +7,4 @@ venv/
 
 # IDE-related ignores
 .idea/
+.vscode/
