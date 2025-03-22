@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
 class MeasurementWindow(QWidget):
     _ref_p1: tuple[int, int] | None  # Reference point 1: (x,y) pixels on pixmap
     _ref_p2: tuple[int, int] | None  # Reference point 1: (x,y) pixels on pixmap
-    _ref_length: int  # Real life distance between 2 reference points
-    _ref_pixel_length: float  # Distance between the 2 reference points in pixels on the pixmap
+    _ref_length: float  # Real life distance between 2 reference points
+    _ref_pixel_length: int  # Distance between the 2 reference points in pixels on the pixmap
     _temp_query_point: tuple[int, int] | None  # Holder for the first point when inputting 2 non-reference points
 
     _canvas: QLabel
@@ -28,6 +28,7 @@ class MeasurementWindow(QWidget):
     def __init__(self, parent, picture: QPixmap):
         super().__init__(parent)
         self.setWindowFlag(Qt.WindowType.Window)
+        self.setWindowModality(Qt.WindowModality.WindowModal)
         width, height = QGuiApplication.primaryScreen().size().toTuple()  # type: ignore
         width //= 2
         height //= 2
@@ -49,11 +50,11 @@ class MeasurementWindow(QWidget):
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             point = event.pos()
-            self.draw_point(point)
+            self._draw_point(point)
         elif event.button() == Qt.MouseButton.RightButton:
-            self.reset_points()
+            self._reset_points()
 
-    def draw_point(self, point: QPoint):
+    def _draw_point(self, point: QPoint):
         pix = self._canvas.pixmap()
         point_x = (point.x() * pix.width()) // self._canvas.width()
         point_y = (point.y() * pix.height()) // self._canvas.height()
@@ -78,17 +79,17 @@ class MeasurementWindow(QWidget):
         self._canvas.setPixmap(pix)
         if self._ref_p1 is not None and self._ref_p2 is not None:
             if self._ref_length == 0:
-                self.prompt_real_length()
+                self._prompt_real_length()
                 if self._ref_p2 is None:
                     self._canvas.setPixmap(pix_copy)
                 return
             elif self._temp_query_point is None:
                 self._temp_query_point = (point_x, point_y)
             else:
-                self.draw_labeled_line(self._temp_query_point, (point_x, point_y), 12)
+                self._draw_labeled_line(self._temp_query_point, (point_x, point_y), 12)
                 self._temp_query_point = None
 
-    def draw_labeled_line(self, point1: tuple[int, int], point2: tuple[int, int], font_pixel_size: int = None):
+    def _draw_labeled_line(self, point1: tuple[int, int], point2: tuple[int, int], font_pixel_size: int = None):
         x1, y1 = point1
         x2, y2 = point2
         # Ensure (x1,y1) is the leftmost point -> for easily calculating the slope
@@ -124,7 +125,7 @@ class MeasurementWindow(QWidget):
         painter.end()
         self._canvas.setPixmap(pix)
 
-    def reset_points(self):
+    def _reset_points(self):
         self._ref_p1 = None
         self._ref_p2 = None
         self._ref_length = 0
@@ -132,7 +133,7 @@ class MeasurementWindow(QWidget):
         self._temp_query_point = None
         self._canvas.setPixmap(self.original_pic)
 
-    def prompt_real_length(self):
+    def _prompt_real_length(self):
         length, ok = QInputDialog.getText(
             self,
             "Real Life Length",
@@ -140,14 +141,14 @@ class MeasurementWindow(QWidget):
             QLineEdit.EchoMode.Normal,
             "1",
             )
-        if not ok or int(length) == 0:
+        if not ok or float(length) == 0:
             self._ref_p2 = None
             return
         self._ref_length = float(length)
         x1, y1 = self._ref_p1
         x2, y2 = self._ref_p2
         self._ref_pixel_length = int(sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2))
-        self.draw_labeled_line(self._ref_p1, self._ref_p2, 12)
+        self._draw_labeled_line(self._ref_p1, self._ref_p2, 12)
 
     def resizeEvent(self, event):
         self._canvas.resize(event.size())
