@@ -1,29 +1,28 @@
 import random
+from functools import partial
 
-from .gamepad import Controller
-from .cv_stream import VideoStream
-from .esp32 import ESP32
-from .measurement_widget import MeasurementWindow
-
+import requests
+from PySide6.QtCore import QTimer, Qt, QSize
+from PySide6.QtGui import QImage, QPixmap, QPainter, QColor, QPen, QBrush, QIcon
 from PySide6.QtWidgets import (
     QMainWindow,
     QLabel,
     QWidget,
     QGridLayout,
     QVBoxLayout,
-    QHBoxLayout,
     QScrollArea,
     QCheckBox,
     QPushButton,
     QMenu,
     QInputDialog,
     QLineEdit,
-)
-from PySide6.QtGui import QImage, QPixmap, QPainter, QColor, QPen, QBrush, QIcon
-from PySide6.QtCore import QTimer, Qt, QSize
+    )
+
 from .controller_widget import ControllerDisplay
-from functools import partial
-import requests
+from .cv_stream import VideoStream
+from .esp32 import ESP32
+from .gamepad import Controller
+from .measurement_widget import MeasurementWindow
 
 RASPBERY_PI_IP = "192.168.1.2"
 
@@ -31,17 +30,17 @@ from os import path
 
 _ = path.join(path.dirname(path.abspath(__file__)), "assets")
 camera_toolbar_icons = {
-    "hflip": QIcon(path.join(_, "flip-horizontal.svg")),
-    "vflip": QIcon(path.join(_, "flip-vertical.svg")),
+    "hflip":       QIcon(path.join(_, "flip-horizontal.svg")),
+    "vflip":       QIcon(path.join(_, "flip-vertical.svg")),
     "measurement": QIcon(path.join(_, "ruler.svg")),
-    "pano": QIcon(path.join(_, "pano.svg")),
-}
+    "pano":        QIcon(path.join(_, "pano.svg")),
+    }
 
 
 class CameraWidget(QLabel):
     def __init__(self, parent, cam):
         super().__init__(parent)
-        self.cam = VideoStream(cam)
+        self._stream = VideoStream(cam)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
         self.bottom_buttons = {}
         for b in camera_toolbar_icons:
@@ -56,7 +55,7 @@ class CameraWidget(QLabel):
         self.bottom_buttons["vflip"].clicked.connect(self.vflip)
         self.bottom_buttons["measurement"].clicked.connect(
             self._launch_length_measurement
-        )
+            )
 
         self.measurement_window: QWidget | None = None
 
@@ -80,7 +79,7 @@ class CameraWidget(QLabel):
             b.setVisible(False)
 
     def _pixmap_from_frame(self):
-        frame = self.cam.frame
+        frame = self._stream.frame
         q_image = (
             QImage(
                 frame.data,
@@ -88,7 +87,7 @@ class CameraWidget(QLabel):
                 frame.shape[0],
                 frame.strides[0],
                 QImage.Format.Format_BGR888,
-            )
+                )
             .smoothScaled(self.width(), self.height())
             .mirrored(horizontally=self.h_mirror, vertically=self.v_mirror)
         )
@@ -158,14 +157,14 @@ class ThrustersWidget(QWidget):
             # ,  # Bottom
             # # QColor(0, 255, 0),  # Left
             # QColor(0, 255, 0)   # Right
-        ]
+            ]
 
         self.rotated_square_colors = [
             QColor(0, 255, 0),  # Front-left
             QColor(0, 255, 0),  # Front-right
             QColor(0, 255, 0),  # Back-left
             QColor(0, 255, 0),  # Back-right
-        ]
+            ]
 
     def set_colors(self):
         """Allows changing colors dynamically"""
@@ -191,13 +190,13 @@ class ThrustersWidget(QWidget):
             # ,  # Bottom
             # QColor(0, 255, 0),  # Left
             # QColor(0, 255, 0)   # Right
-        ]
+            ]
         self.rotated_square_colors = [
             QColor(frontLeftSpeed, 255 - frontLeftSpeed, 0),  # Front-left
             QColor(frontRightSpeed, 255 - frontRightSpeed, 0),  # Front-right
             QColor(backLeftSpeed, 255 - backLeftSpeed, 0),  # Back-left
             QColor(backRightSpeed, 255 - backRightSpeed, 0),  # Back-right
-        ]
+            ]
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -211,7 +210,7 @@ class ThrustersWidget(QWidget):
         # Central square (70% of size)
         square_size = int(
             size * 0.7
-        )  ###changing the ratio changes the thrusters size###
+            )  ###changing the ratio changes the thrusters size###
         square_x = (self.width() - square_size) // 2
         square_y = (self.height() - square_size) // 2
 
@@ -227,40 +226,40 @@ class ThrustersWidget(QWidget):
             # ,  # Bottom
             # (square_x - square_size // 3, square_y + square_size // 2),  # Left
             # (square_x + square_size + square_size // 3, square_y + square_size // 2)  # Right
-        ]
+            ]
 
         rotated_offsets = [
             (square_x - square_size // 3, square_y - square_size // 3),  # Top-left
             (
                 square_x + square_size + square_size // 3,
                 square_y - square_size // 3,
-            ),  # Top-right
+                ),  # Top-right
             (
                 square_x - square_size // 3,
                 square_y + square_size + square_size // 3,
-            ),  # Bottom-left
+                ),  # Bottom-left
             (
                 square_x + square_size + square_size // 3,
                 square_y + square_size + square_size // 3,
-            ),  # Bottom-right
-        ]
+                ),  # Bottom-right
+            ]
 
         self.frontLabel.setGeometry(
             offsets[0][0] - 10, offsets[0][1] - 15, 100, 30
-        )  # (x, y, width, height)
+            )  # (x, y, width, height)
         self.backLabel.setGeometry(offsets[1][0] - 10, offsets[1][1] - 15, 100, 30)
         self.leftfrontLabel.setGeometry(
             rotated_offsets[0][0] - 10, rotated_offsets[0][1] - 15, 100, 30
-        )
+            )
         self.rightfrontLabel.setGeometry(
             rotated_offsets[1][0] - 10, rotated_offsets[1][1] - 15, 100, 30
-        )
+            )
         self.leftbackLabel.setGeometry(
             rotated_offsets[2][0] - 10, rotated_offsets[2][1] - 15, 100, 30
-        )
+            )
         self.rightbackLabel.setGeometry(
             rotated_offsets[3][0] - 10, rotated_offsets[3][1] - 15, 100, 30
-        )
+            )
 
         circle_radius = int(square_size * 0.2)
 
@@ -272,7 +271,7 @@ class ThrustersWidget(QWidget):
                 y - circle_radius,
                 circle_radius * 2,
                 circle_radius * 2,
-            )
+                )
 
         # Draw Rotated Squares with individual colors
         for i, (x, y) in enumerate(rotated_offsets):
@@ -282,7 +281,7 @@ class ThrustersWidget(QWidget):
             painter.rotate(45)  # Rotate by 45 degrees
             painter.drawRect(
                 -circle_radius, -circle_radius, circle_radius * 2, circle_radius * 2
-            )
+                )
             painter.restore()
 
     def updateThrusters(self):
@@ -317,21 +316,9 @@ class MainWindow(QMainWindow):
             except requests.RequestException:
                 return False
 
-        left_camera_url = "http://" + RASPBERY_PI_IP + ":8081/stream"
-        if is_url_reachable(left_camera_url):
-            self.leftCameraWidget = CameraWidget(self, left_camera_url)
-        else:
-            self.leftCameraWidget = CameraWidget(self, 0)
-        middle_camera_url = "http://" + RASPBERY_PI_IP + ":8080/stream"
-        if is_url_reachable(middle_camera_url):
-            self.middleCameraWidget = CameraWidget(self, middle_camera_url)
-        else:
-            self.middleCameraWidget = CameraWidget(self, 1)
-        right_camera_url = "http://" + RASPBERY_PI_IP + ":8082/stream"
-        if is_url_reachable(right_camera_url):
-            self.rightCameraWidget = CameraWidget(self, right_camera_url)
-        else:
-            self.rightCameraWidget = CameraWidget(self, 2)
+        self.leftCameraWidget = CameraWidget(self, 0)
+        self.middleCameraWidget = CameraWidget(self, 1)
+        self.rightCameraWidget = CameraWidget(self, 2)
         self.orientationsWidget = OrientationsWidget(self)
         self.controllerWidget = ControllerDisplay(self.controller)
         self.thrustersWidget = ThrustersWidget(self)
@@ -414,7 +401,7 @@ class MainWindow(QMainWindow):
             "Port Name (RFC2217 NOT FULLY SUPPORTED):",
             QLineEdit.EchoMode.Normal,
             "COM",
-        )
+            )
         if ok:
             self.toggle_port(text)
 
