@@ -87,20 +87,23 @@ class VideoStream:
         if self._connection_status == ConnectionStatus.IN_PROGRESS:
             return
 
+        self._connection_status = ConnectionStatus.IN_PROGRESS
+
+        if type(descriptor) is dict:
+            if 'index' in descriptor:
+                if descriptor['index'] is not None:
+                    descriptor = descriptor['index']
+            elif 'name' in descriptor:
+                descriptor = descriptor['name']
+            else:
+                descriptor = None
+
         if descriptor is None:
             self._cap_index = None
             self._cap_name = None
             self._connection_status = ConnectionStatus.DISCONNECTED
             self._cap.release()
             return
-
-        self._connection_status = ConnectionStatus.IN_PROGRESS
-
-        if type(descriptor) is dict:
-            if descriptor['index'] is not None:
-                descriptor = descriptor['index']
-            else:
-                descriptor = descriptor['name']
 
         if type(descriptor) == int:
             if descriptor not in self.available_cameras:
