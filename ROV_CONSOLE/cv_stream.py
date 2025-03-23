@@ -1,6 +1,8 @@
 """
     Fault-tolerant video stream handler using opencv.
 """
+from __future__ import annotations
+
 import enum
 from os import name as os_name
 from pathlib import Path
@@ -16,6 +18,7 @@ class ConnectionStatus(enum.Enum):
     CONNECTED = enum.auto()
     DISCONNECTED = enum.auto()
     IN_PROGRESS = enum.auto()
+    MIRRORING = enum.auto()
 
 
 class VideoStream:
@@ -33,12 +36,17 @@ class VideoStream:
     _cameras: dict[int:str]  # {index: name}
     _frame_thread: Thread
     _killswitch: bool
+    _upstream: VideoStream | None  # VideoStream to mirror while ConnectionStatus.MIRRORING
+
+    _pool: list[VideoStream] = []  # CLASS-ONLY ATTRIBUTE
 
     def __init__(self, descriptor: int | str | None = None):
         self._cap = cv2.VideoCapture()
         self._cap_name = None
         self._cap_index = None
+        self._upstream = None
         self._connection_status = ConnectionStatus.DISCONNECTED
+        self.__class__._register_stream(self)
         if descriptor is not None:
             self.source = descriptor
         self._frame = self._EMPTY_FRAME
@@ -47,6 +55,31 @@ class VideoStream:
         self._frame_thread.start()
         self._cameras = []
 
+    @classmethod
+    def _register_stream(cls, obj: VideoStream):
+        cls._pool.append(obj)
+
+    @classmethod
+    def mirror(cls, obj: VideoStream, descriptor) -> VideoStream | None:
+        upstream = None
+        if type(descriptor) is int:
+            for s in cls._pool:
+                if s == obj or s._connection_status == ConnectionStatus.MIRRORING:
+                    continue
+                if s.source['index'] == descriptor:
+                    upstream = s
+                    break
+
+        elif type(descriptor) is str:
+            path = Path(descriptor).resolve()
+            if path.exists(): descriptor = path.name
+            for s in cls._pool:
+                if s == obj or s._connection_status == ConnectionStatus.MIRRORING:
+                    continue
+                if s.source['name'] == descriptor:
+                    upstream = s
+        return upstream
+
     @property
     def available_cameras(self):
         self._cameras = {cam.index: cam.name for cam in enumerate_cameras(self._ENUM_API)}
@@ -54,7 +87,10 @@ class VideoStream:
 
     @property
     def connection_status(self):
-        return self._connection_status
+        me = self
+        if self._connection_status == ConnectionStatus.MIRRORING:
+            me = self._upstream
+        return me._connection_status
 
     def _try_connect_to_url(self, url: str):
         def url_reachable():
@@ -79,13 +115,19 @@ class VideoStream:
 
     @property
     def source(self):
-        return {'index': self._cap_index, 'name': self._cap_name, 'connection_status': self._connection_status}
+        me = self
+        if self._connection_status == ConnectionStatus.MIRRORING:
+            me = self._upstream
+        return {'index': me._cap_index, 'name': me._cap_name, 'connection_status': me._connection_status}
 
     @source.setter
     def source(self, descriptor: dict | int | str | None):
 
         if self._connection_status == ConnectionStatus.IN_PROGRESS:
             return
+
+        if self._connection_status == ConnectionStatus.MIRRORING:
+            self.source = None
 
         self._connection_status = ConnectionStatus.IN_PROGRESS
 
@@ -103,6 +145,13 @@ class VideoStream:
             self._cap_name = None
             self._connection_status = ConnectionStatus.DISCONNECTED
             self._cap.release()
+            return
+
+        possible_upstream = self.__class__.mirror(self, descriptor)
+        if possible_upstream is not None:
+            self._cap.release()
+            self._connection_status = ConnectionStatus.MIRRORING
+            self._upstream = possible_upstream
             return
 
         if type(descriptor) == int:
@@ -139,13 +188,18 @@ class VideoStream:
     def _frame_loop(self):
         try:
             while not self._killswitch:
-                if self._cap.isOpened() and self._connection_status == ConnectionStatus.CONNECTED:
-                    _, f = self._cap.read()
-                    if _:
-                        self._frame = f
-                else:
-                    self._frame = self._EMPTY_FRAME
                 sleep(0.015)
+                if self._connection_status == ConnectionStatus.MIRRORING:
+                    self._frame = self._upstream._frame
+                    continue
+                if self._cap.isOpened() and self._connection_status == ConnectionStatus.CONNECTED:
+                    ok, f = self._cap.read()
+                    if ok:
+                        self._frame = f
+                        continue
+                    else:
+                        self.source = None
+                self._frame = self._EMPTY_FRAME
         except SystemExit:
             self.kill()
 
@@ -162,25 +216,3 @@ class VideoStream:
             self._frame_thread.join()
         if self._cap.isOpened():
             self._cap.release()
-
-
-class VideoManager:
-    _open_streams = list[VideoStream]
-
-    def __init__(self):
-        self._open_streams = []
-
-    def new_stream(self, descriptor: int | str) -> VideoStream:
-        if type(descriptor) is int:
-            for s in self._open_streams:
-                if s.source['index'] == descriptor:
-                    return s
-            return VideoStream(descriptor)
-        elif type(descriptor) is str:
-            path = Path(descriptor).resolve()
-            if path.exists(): descriptor = path.name
-            for s in self._open_streams:
-                if s.source['name'] == descriptor:
-                    return s
-            return VideoStream(descriptor)
-        return VideoStream()
