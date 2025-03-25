@@ -1,14 +1,13 @@
-import subprocess
 import threading
 import serial
 import serial.tools.list_ports
 from sys import stderr
+from esptool import main as run_esptool
 
-ESP_TOOL = ["python", "-m", "esptool"]
 
 class ESP32:
     _BAUDRATE: int = 115200
-    _serial:   serial.Serial
+    _serial: serial.Serial
     _port_rfc: bool
 
     def __init__(self):
@@ -24,14 +23,19 @@ class ESP32:
     def port(self) -> str | None:
         return self._serial.port
 
+    @port.setter
+    def port(self, port: str | None):
+        if port is None:
+            self.disconnect()
+        else:
+            self.connect(port)
+
     @property
-    def resetting(self):
+    def is_resetting(self):
         return self._resetting
 
     @property
     def connected(self) -> bool:
-        if self._resetting:
-            return False
         try:
             # Works with actual serial ports, network ports may need a write/ read operation instead to raise exception
             _ = self._serial.in_waiting
@@ -45,9 +49,13 @@ class ESP32:
                 self._serial.port = None
         return self._serial.port is not None
 
+    @property
+    def serial_ready(self):
+        return self.connected and not self._resetting
+
     def reset(self):
         def actual_reset():
-            subprocess.run(ESP_TOOL + ["--port", self.port, "reset"])
+            run_esptool(["--port", self.port, "reset"])
             self._resetting = False
 
         self._resetting = True
@@ -60,12 +68,15 @@ class ESP32:
 
     def connect(self, port: str) -> None:
         self._serial.close()
-        if 'rfc2217://' in port and not self._port_rfc:
-            print('Ports over RFC is not fully supported, disconnects will not be detected!', stderr)
+        if "rfc2217://" in port and not self._port_rfc:
+            print(
+                "Ports over RFC is not fully supported, disconnects will not be detected!",
+                stderr,
+            )
             self._serial = serial.serial_for_url(port, baudrate=self._BAUDRATE)
             self._port_rfc = True
             return
-        if 'rfc2217://' not in port and self._port_rfc:
+        if "rfc2217://" not in port and self._port_rfc:
             self._serial = serial.Serial(port=port, baudrate=self._BAUDRATE)
             self._port_rfc = False
             return
