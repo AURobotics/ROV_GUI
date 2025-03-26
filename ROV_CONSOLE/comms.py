@@ -6,23 +6,23 @@ from time import sleep
 from typing import Optional
 
 from plyer import notification
+from schema import Schema, Optional, SchemaError
 
 from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
 
+readings_schema = Schema(
+    {
+        'thrusters':    {"h1": float, "h2": float, "h3": float, "h4": float, "v1": float, "v2": float},
+        'orientation':  {'roll': float, 'pitch': float, 'yaw': float},
+        'acceleration': {'x': float, 'y': float, 'z': float},
+        'status':       {'led': bool, 'dcv1': bool, 'dcv2': bool},
+        }
+    )
+
 
 class CommunicationManager:
     """Competition-specific handler for the ESP Comms"""
-    _VALID_LINES = [
-        'Checksum error! Ignoring packet',  # notify
-        'DC Valve 1: %boolN',  # Valve 1
-        'DC Valve 2: %boolN',  # Valve 2
-        'BNO055 not detected',  # notify
-        'All systems are working fine from Guileta',  # ignore
-        'Thruster Forces:'  # ignore
-        ' F1: %.2f F2: %.2f F3: %.2f F4: %.2f F5: %.2f F6: %.2f',  # Thruster forces
-        '%d  %d  %d'  # IMU Readings: yaw, pitch, roll
-        ]
 
     def __init__(self, esp: ESP32, controller: Controller, thrusters_callback: None, imu_callback=None):
         self._esp = esp
@@ -46,7 +46,8 @@ class CommunicationManager:
                 readings = None
                 try:
                     readings = json.loads(consumed)
-                except json.JSONDecodeError:
+                    readings = readings_schema.validate(readings)
+                except json.JSONDecodeError or SchemaError:
                     readings = None
                     notification.notify(
                         title='ROV ERROR',
