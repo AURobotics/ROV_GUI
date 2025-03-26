@@ -1,3 +1,5 @@
+from typing import Optional
+
 from PySide6.QtGui import QColor, QPainter, QPen, QBrush, Qt
 from PySide6.QtWidgets import QWidget, QLabel
 
@@ -6,6 +8,12 @@ class ThrustersWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
+        self._h1 = 0
+        self._h2 = 0
+        self._h3 = 0
+        self._h4 = 0
+        self._v1 = 0
+        self._v2 = 0
 
         self.frontLabel = QLabel(self)
         self.backLabel = QLabel(self)
@@ -35,12 +43,12 @@ class ThrustersWidget(QWidget):
     def set_colors(self):
         '''Allows changing colors dynamically'''
 
-        frontRightSpeed = 0
-        backRightSpeed = 255
-        frontLeftSpeed = 100
-        backLeftSpeed = 200
-        upFrontSpeed = 50
-        upBackSpeed = 150
+        frontRightSpeed = self._h1
+        backRightSpeed = self._h2
+        frontLeftSpeed = self._h3
+        backLeftSpeed = self._h4
+        upFrontSpeed = self._v1
+        upBackSpeed = self._v2
 
         self.frontLabel.setText(str(upFrontSpeed))
         self.backLabel.setText(str(upBackSpeed))
@@ -150,6 +158,15 @@ class ThrustersWidget(QWidget):
                 )
             painter.restore()
 
-    def updateThrusters(self):
+    def display(self, values: Optional[dict]):
+        if values is None:
+            return
+        self._h1 = values['h1']
+        self._h2 = values['h2']
+        self._h3 = values['h3']
+        self._h4 = values['h4']
+        self._v1 = values['v1']
+        self._v2 = values['v2']
+
         self.set_colors()
         self.update()
