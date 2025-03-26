@@ -1,7 +1,7 @@
 from functools import partial
 
 from PySide6.QtCore import QTimer, Qt, QSize
-from PySide6.QtGui import QImage, QPixmap, QIcon, QAction
+from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication
 from PySide6.QtWidgets import (
     QMainWindow,
     QLabel,
@@ -23,6 +23,27 @@ from .orientation_widget import OrientationWidget
 from .thrusters_widget import ThrustersWidget
 
 
+class CameraWindow(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowFlag(Qt.WindowType.Window)
+        # self.setWindowModality(Qt.WindowModality.WindowModal)
+        width, height = QGuiApplication.primaryScreen().size().toTuple()
+        width //= 2
+        height //= 2
+        self._frame = QLabel(self)
+        self.resize(width, height)
+        self._frame.setScaledContents(True)
+        self.setWindowTitle("Video Stream")
+        self.show()
+
+    def resizeEvent(self, event):
+        self._frame.resize(event.size())
+
+    def update_(self, pix):
+        self._frame.setPixmap(pix)
+
+
 class CameraWidget(QWidget):
     def __init__(self, parent, cam):
         super().__init__(parent)
@@ -41,6 +62,7 @@ class CameraWidget(QWidget):
             'vflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-vertical.svg')), 'function': self.vflip},
             'measurement': {'icon': QIcon(str(ASSETS_PATH / 'ruler.svg')), 'function': self._launch_length_measurement},
             'pano':        {'icon': QIcon(str(ASSETS_PATH / 'pano.svg')), 'function': None},
+            'maximize':    {'icon': QIcon(str(ASSETS_PATH / 'maximize.svg')), 'function': self.launch_maximized},
             }
         self._bottom_toolbar.setRowStretch(8, 1)  # Add 9 empty rows
         pos = [9, 0]  # Utilize the 10th (forces it to be the bottom-most row)
@@ -77,12 +99,17 @@ class CameraWidget(QWidget):
         self._cam_menu_add_custom.triggered.connect(self.custom_camera_popup)
         self._bottom_toolbar.addWidget(self._camera_dropdown, *pos, 1, 1)
         self.setLayout(self._bottom_toolbar)
+        self._maximized_popup = None
 
     def hflip(self):
         self.h_mirror = not self.h_mirror
 
     def vflip(self):
         self.v_mirror = not self.v_mirror
+
+    def launch_maximized(self):
+        if self._maximized_popup is None:
+            self._maximized_popup = CameraWindow(self)
 
     def enterEvent(self, event):
         for i in range(self._bottom_toolbar.count()):
@@ -131,7 +158,13 @@ class CameraWidget(QWidget):
         self._stream.source = cam
 
     def update(self):
-        self._view.setPixmap(self._pixmap_from_stream())
+        pix = self._pixmap_from_stream()
+        self._view.setPixmap(pix)
+        if self._maximized_popup is not None:
+            if not self._maximized_popup.isVisible():
+                self._maximized_popup = None
+            else:
+                self._maximized_popup.update_(pix)
         if self._stream.connection_status == ConnectionStatus.IN_PROGRESS:
             self._camera_dropdown.setText('Connecting..')
             return
