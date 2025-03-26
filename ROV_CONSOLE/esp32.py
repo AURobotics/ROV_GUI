@@ -10,6 +10,7 @@ from typing import Optional
 import serial
 import serial.tools.list_ports
 from esptool import main as run_esptool
+from plyer import notification
 
 from ROV_CONSOLE.gamepad import Controller
 
@@ -147,17 +148,23 @@ class CommunicationManager:
                     consumed = self._esp.next_line
 
                 readings = None
-                error_reporting = None
                 try:
                     readings = json.loads(consumed)
                 except json.JSONDecodeError:
-                    error_reporting = consumed
-                    
-                if self._thrusters_callback is not None:
-                    ...
+                    readings = None
+                    notification.notify(
+                        title='ROV ERROR',
+                        message=consumed,
+                        timeout=2,
+                        app_name='AU Robotics ROV GUI'
+                        )
 
-                if self._imu_callback is not None:
-                    ...
+                if readings is not None:
+                    if self._thrusters_callback is not None:
+                        ...
+
+                    if self._imu_callback is not None:
+                        ...
 
                 if self._controller is not None:
                     if self._controller.connected:
