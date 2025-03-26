@@ -8,8 +8,11 @@ from typing import Optional
 from plyer import notification
 from schema import Schema, Optional, SchemaError
 
+from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
+from ROV_CONSOLE.orientation_widget import OrientationWidget
+from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 readings_schema = Schema(
     {
@@ -24,21 +27,42 @@ readings_schema = Schema(
 class CommunicationManager:
     """Competition-specific handler for the ESP Comms"""
 
-    def __init__(self, esp: ESP32, controller: Controller, thrusters_callback: None, imu_callback=None):
+    def __init__(self, esp: ESP32, controller: Controller, controller_widget: ControllerDisplay,
+                 thrusters_widget: ThrustersWidget, orientation_widget: OrientationWidget):
         self._esp = esp
         self._controller = controller
         self._cache = {
-            'controller': {'led_and_valves': 0, 'L1_debounce': 0, 'R1_debounce': 0, 'TOUCHPAD_debounce': 0}
+            'controller':  {'led_and_valves': 0, 'L1_debounce': 0, 'R1_debounce': 0, 'TOUCHPAD_debounce': 0},
+            'thrusters':   None,
+            'orientation': None,
             }
-        self._thrusters_callback = thrusters_callback
-        self._imu_callback = imu_callback
+        self._controller_widget = controller_widget
+        self._thrusters_widget = thrusters_widget
+        self._orientation_widget = orientation_widget
         self._killswitch = False
         self._comms_thread = Thread(target=self._comms_loop, daemon=True)
 
+    def update_widgets(self):
+        """Updates widgets on main thread, strictly called from main thread"""
+        if not self._controller.connected:
+            self._controller_widget.display(None)
+        else:
+            self._controller_widget.display(self._controller.bindings_state)
+
     def _comms_loop(self):
+        """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
             sleep(0.015)
-            if self._esp.serial_ready:
+            if not self._esp.serial_ready:
+                # Reset the transient part of the cache
+                # Non-transient keys include: controller['leds_and_valves']
+
+                self._cache['thrusters'] = None
+                self._cache['orientation'] = None
+                self._cache['controller']['L1_debounce'] = 0
+                self._cache['controller']['R1_debounce'] = 0
+                self._cache['controller']['TOUCHPAD_debounce'] = 0
+            else:
                 consumed: Optional[str] = None
                 if self._esp.incoming:
                     consumed = self._esp.next_line
@@ -47,7 +71,8 @@ class CommunicationManager:
                 try:
                     readings = json.loads(consumed)
                     readings = readings_schema.validate(readings)
-                except json.JSONDecodeError or SchemaError:
+                except json.JSONDecodeError:
+                    # Consumed message was an error or debug message
                     readings = None
                     notification.notify(
                         title='ROV ERROR',
@@ -55,13 +80,13 @@ class CommunicationManager:
                         timeout=2,
                         app_name='AU Robotics ROV GUI'
                         )
+                except SchemaError:
+                    # Consumed message was a malformed readings message
+                    readings = None
 
                 if readings is not None:
-                    if self._thrusters_callback is not None:
-                        ...
-
-                    if self._imu_callback is not None:
-                        ...
+                    self._cache['thrusters'] = readings['thrusters'].copy()
+                    self._cache['orientation'] = readings['orientation'].copy()
 
                 if self._controller is not None:
                     if self._controller.connected:
@@ -128,4 +153,5 @@ class CommunicationManager:
 
     def __del__(self):
         self._killswitch = True
-        self._comms_thread.join()
+        if self._comms_thread.is_alive():
+            self._comms_thread.join()

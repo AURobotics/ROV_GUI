@@ -1,3 +1,5 @@
+from typing import Optional
+
 from PySide6.QtCore import QTimer, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget, QPushButton, QLabel
@@ -8,8 +10,8 @@ DS4_ICONS = {f.stem: QIcon(str(f)) for f in DS4_ICONS_PATHS}
 
 
 class ControllerDisplay(QWidget):
-    def __init__(self, controller):
-        super().__init__()
+    def __init__(self, parent):
+        super().__init__(parent)
 
         self.button_scheme = {
             'CIRCLE': {
@@ -138,7 +140,7 @@ class ControllerDisplay(QWidget):
             button = QPushButton(self)
             button.setObjectName(b)
             button.setIcon(DS4_ICONS[self.button_scheme[b]['icons'][0]])
-            pos = self.button_scheme[b]['position']
+            pos = tuple[int, int](self.button_scheme[b]['position'])
             button.move(pos[0], pos[1])
             button.setIconSize(self.button_scheme[b]['size'])
             button.setStyleSheet("border: none;")
@@ -148,20 +150,19 @@ class ControllerDisplay(QWidget):
         self.no_controller_label.move(205, 105)
         self.no_controller_label.setVisible(False)
 
-        self.controller = controller
         self.reset_flag = False
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(50)
 
-    def update(self):
-        if not self.controller.connected:
+    def display(self, states=Optional[dict]):
+        if states is None:
             if not self.reset_flag:
                 self.reset_flag = True
                 for b in self.buttons:
                     self.buttons[b].setIcon(DS4_ICONS[self.button_scheme[b]['icons'][0]])
-                    pos = self.button_scheme[b]['position']
+                    pos = tuple[int, int](self.button_scheme[b]['position'])
                     self.buttons[b].move(pos[0], pos[1])
                     self.buttons[b].setVisible(False)
                     self.no_controller_label.setVisible(True)
@@ -173,7 +174,6 @@ class ControllerDisplay(QWidget):
                 self.no_controller_label.setVisible(False)
 
         self.reset_flag = False
-        states = self.controller.bindings_state
         for b in states:
             v = states[b]
             if b in self.buttons:
