@@ -40,23 +40,31 @@ class CommunicationManager:
         self._thrusters_widget = thrusters_widget
         self._orientation_widget = orientation_widget
         self._killswitch = False
-        self._serial_thread = Thread(target=self._serial_loop, daemon=True)
-        self._serial_thread.start()
+        self._serial_incoming_thread = Thread(target=self._serial_incoming_loop, daemon=True)
+        self._serial_incoming_thread.start()
+        self._serial_outgoing_thread = Thread(target=self._serial_outgoing_loop, daemon=True)
+        self._serial_outgoing_thread.start()
 
     def update_widgets(self):
         """Updates widgets on main thread, strictly called from main thread"""
+        self._thrusters_widget.display(self._cache['thrusters'])
+        self._orientation_widget.display(self._cache['orientation'])
+
         if not self._controller.connected:
             self._controller_widget.display(None)
         else:
             self._controller_widget.display(self._controller.bindings_state)
 
-        self._thrusters_widget.display(self._cache['thrusters'])
-        self._orientation_widget.display(self._cache['orientation'])
+    def _serial_outgoing_loop(self):
+        while not self._killswitch:
+            sleep(0.015)
+            if self._esp.serial_ready:
+                if self._controller.connected:
+                    self._esp.send(self._serial_controller_payload())
 
-    def _serial_loop(self):
+    def _serial_incoming_loop(self):
         """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
-            sleep(0.005)
             if not self._esp.serial_ready:
                 # Reset the transient part of the cache
                 # Non-transient keys include: controller['leds_and_valves']
@@ -66,10 +74,12 @@ class CommunicationManager:
                 self._cache['controller']['L1_debounce'] = 0
                 self._cache['controller']['R1_debounce'] = 0
                 self._cache['controller']['TOUCHPAD_debounce'] = 0
+                sleep(0.015)
             else:
                 consumed: Optional[str] = None
                 readings = None
-                if self._esp.incoming:
+                while self._esp.incoming:
+                    # TODO: Tolerate sudden disconnect
                     consumed = self._esp.next_line
                     try:
                         readings = json.loads(consumed, parse_int=float)
@@ -90,9 +100,6 @@ class CommunicationManager:
                 if readings is not None:
                     self._cache['thrusters'] = readings['thrusters'].copy()
                     self._cache['orientation'] = readings['orientation'].copy()
-
-                if self._controller.connected:
-                    self._esp.send(self._serial_controller_payload())
 
     def _serial_controller_payload(self):
         # Keybindings:
@@ -155,5 +162,7 @@ class CommunicationManager:
 
     def __del__(self):
         self._killswitch = True
-        if self._serial_thread.is_alive():
-            self._serial_thread.join()
+        if self._serial_incoming_thread.is_alive():
+            self._serial_incoming_thread.join()
+        if self._serial_outgoing_thread.is_alive():
+            self._serial_outgoing_thread.join()
