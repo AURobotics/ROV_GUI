@@ -12,58 +12,73 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QPushButton,
     QInputDialog,
-    QLineEdit, QMenuBar, QMenu, QToolButton,
-    )
+    QLineEdit, QMenuBar, QMenu, QToolButton, QSpacerItem, QSizePolicy, )
+from plyer import notification
 
 from .controller_widget import ControllerDisplay
-from .cv_stream import VideoStream
+from .cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
 from .esp32 import ESP32
 from .gamepad import Controller
 from .measurement_widget import MeasurementWindow
 
 ASSETS_PATH = Path(__file__).resolve().parent / 'assets'
-camera_toolbar_icons = {
-    'hflip':       QIcon(str(ASSETS_PATH / 'flip-horizontal.svg')),
-    'vflip':       QIcon(str(ASSETS_PATH / 'flip-vertical.svg')),
-    'measurement': QIcon(str(ASSETS_PATH / 'ruler.svg')),
-    'pano':        QIcon(str(ASSETS_PATH / 'pano.svg'))
-    }
 APP_ICON = ASSETS_PATH / 'appicon.png'
 
 
 class CameraWidget(QWidget):
-
     def __init__(self, parent, cam):
         super().__init__(parent)
         self._stream = VideoStream(cam)
         self._view = QLabel(self)
         self._view.setScaledContents(True)
         self._empty_frame = self._pixmap_from_frame(self._stream.EMPTY_FRAME)
-        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
-        self.bottom_buttons = {}
-        for b in camera_toolbar_icons:
-            pb = QPushButton(self)
-            pb.setIcon(camera_toolbar_icons[b])
-            pb.setIconSize(QSize(24, 24))
-            pb.setVisible(False)
-            self.bottom_buttons[b] = pb
         self.h_mirror = False
         self.v_mirror = False
-        self.bottom_buttons['hflip'].clicked.connect(self.hflip)
-        self.bottom_buttons['vflip'].clicked.connect(self.vflip)
-        self.bottom_buttons['measurement'].clicked.connect(
-            self._launch_length_measurement
-            )
-        self.camera_choice_button = QToolButton(self)
-        self.camera_choice_button.setText('Cameras')
-        self.camera_choice_menu = QMenu(self)
-        self.camera_choice_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.camera_choice_button.setMenu(self.camera_choice_menu)
-        cameras = self._stream.available_cameras
-        for c in cameras:
-            action = QAction(f'{c}:{cameras[c]}', self)
-            self.camera_choice_menu.addAction(action)
-            action.triggered.connect(partial(self.change_cam, int(c)))
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self._bottom_toolbar = QGridLayout()
+        self.setLayout(self._bottom_toolbar)
+
+        toolbar_buttons = {
+            'hflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-horizontal.svg')), 'function': self.hflip},
+            'vflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-vertical.svg')), 'function': self.vflip},
+            'measurement': {'icon': QIcon(str(ASSETS_PATH / 'ruler.svg')), 'function': self._launch_length_measurement},
+            'pano':        {'icon': QIcon(str(ASSETS_PATH / 'pano.svg')), 'function': None},
+            }
+        self._bottom_toolbar.setRowStretch(8, 1)  # Add 9 empty rows
+        pos = [9, 0]  # Utilize the 10th (forces it to be the bottom-most row)
+        for b in toolbar_buttons:
+            pb = QPushButton(toolbar_buttons[b]['icon'], '')
+            pb.setIconSize(QSize(24, 24))
+            pb.clicked.connect(toolbar_buttons[b]['function'])
+            pb.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            pb.setVisible(False)
+            self._bottom_toolbar.addWidget(pb, *pos, 1, 1)
+            pos[1] += 1
+            self._bottom_toolbar.addItem(
+                QSpacerItem(24, 24, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding),
+                *pos, 1, 1)
+            pos[1] += 1
+        self._camera_dropdown = QToolButton(self)
+        self._camera_dropdown.setVisible(False)
+
+        self._camera_dropdown.setText('Camera Disconnected')
+        self._camera_menulist = QMenu(self)  # Could be rewritten as a QComboBox
+        self._camera_dropdown.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._camera_dropdown.setMenu(self._camera_menulist)
+        self._camera_dropdown.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
+
+        self._cam_menu_displayed_cams: list[QAction] = []
+        self._cam_menu_slots: dict[int | str:partial] = {}
+        self._cam_menu_stored_cameras: list[CapMetadata] = []
+
+        self._cam_menu_no_cam_indicator = QAction('Camera Disconnected')
+        self._cam_menu_no_cam_indicator.setEnabled(False)
+        self._camera_menulist.addAction(self._cam_menu_no_cam_indicator)
+        self._cam_menu_sep = self._camera_menulist.addSeparator()
+        self._cam_menu_add_custom = self._camera_menulist.addAction('Custom URL')
+        self._cam_menu_add_custom.triggered.connect(self.custom_camera_popup)
+        self._bottom_toolbar.addWidget(self._camera_dropdown, *pos, 1, 1)
+        self.setLayout(self._bottom_toolbar)
 
     def hflip(self):
         self.h_mirror = not self.h_mirror
@@ -72,17 +87,16 @@ class CameraWidget(QWidget):
         self.v_mirror = not self.v_mirror
 
     def enterEvent(self, event):
-        w = self.width() // 4
-        h = self.height() - self.height() // 10
-        for b in self.bottom_buttons.values():
-            b.move(w, h)
-            b.setVisible(True)
-            b.raise_()
-            w += 36
+        for i in range(self._bottom_toolbar.count()):
+            item = self._bottom_toolbar.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(True)
 
     def leaveEvent(self, event):
-        for b in self.bottom_buttons.values():
-            b.setVisible(False)
+        for i in range(self._bottom_toolbar.count()):
+            item = self._bottom_toolbar.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(False)
 
     def _pixmap_from_frame(self, frame):
         return QPixmap(
@@ -111,10 +125,100 @@ class CameraWidget(QWidget):
         self._view.resize(event.size())
 
     def change_cam(self, cam):
+        current_cam = self._stream.source
+        if current_cam is not None:
+            if current_cam['descriptor'] == cam:
+                self._stream.source = None
+                return
         self._stream.source = cam
 
     def update(self):
         self._view.setPixmap(self._pixmap_from_stream())
+        if self._stream.connection_status == ConnectionStatus.IN_PROGRESS:
+            self._camera_dropdown.setText('Connecting..')
+            return
+        elif (self._stream.connection_status == ConnectionStatus.DISCONNECTED and self._stream.disconnect_reason is
+              not DisconnectReason.DESIRED_DISCONNECT):
+            notification.notify(
+                title='Camera Disconnected',
+                message=self._stream.disconnect_message,
+                timeout=2,
+                app_name='AU Robotics ROV GUI'
+                )
+        _devices = self._stream.available_cameras
+        cameras = [{'descriptor': cam, 'name': _devices[cam], 'type': CapType.DEVICE} for cam in _devices]
+        old_custom = None
+        for cam in self._cam_menu_stored_cameras:
+            if cam not in cameras:
+                old_custom = cam
+                break
+        chosen = self._stream.source
+        if chosen is not None:
+            chosen = chosen.copy()
+        new_custom = chosen if chosen not in cameras and chosen != old_custom else None
+        new_cameras = [cam for cam in cameras if cam not in self._cam_menu_stored_cameras]
+        old_cameras = [cam for cam in self._cam_menu_stored_cameras if cam not in cameras and cam != old_custom]
+
+        if len(cameras) == 0:
+            if len(old_cameras) != 0:
+                self._camera_menulist.insertAction(self._cam_menu_sep, self._cam_menu_no_cam_indicator)
+        else:
+            self._camera_menulist.removeAction(self._cam_menu_no_cam_indicator)
+        for cam in new_cameras:
+            option = QAction(f'{cam['name']}')
+
+            self._camera_menulist.insertAction(self._cam_menu_sep, option)
+            f = partial(self.change_cam, cam['descriptor'])
+            self._cam_menu_slots.update({cam['descriptor']: f})
+            option.triggered.connect(f)
+            self._cam_menu_displayed_cams.append(option)
+            self._cam_menu_stored_cameras.append(cam)
+
+        if chosen != old_custom and old_custom is not None:
+            old_cameras.append(old_custom)
+
+        for cam in old_cameras:
+            for option in self._cam_menu_displayed_cams:
+                if option.text() == f'{cam['name']}':
+                    f = self._cam_menu_slots.pop(cam['descriptor'])
+                    option.triggered.disconnect(f)
+                    self._camera_menulist.removeAction(option)
+                    self._cam_menu_displayed_cams.remove(option)
+                    self._cam_menu_stored_cameras.remove(cam)
+
+        if new_custom is not None:
+            self._cam_menu_stored_cameras.append(new_custom)
+            option = QAction(f'{new_custom['name']}')
+            self._camera_menulist.insertAction(self._cam_menu_add_custom, option)
+            f = partial(self.change_cam, new_custom['descriptor'])
+            self._cam_menu_slots.update({new_custom['descriptor']: f})
+            option.triggered.connect(f)
+            self._cam_menu_displayed_cams.append(option)
+
+        for option in self._cam_menu_displayed_cams:
+            if chosen is not None:
+                if chosen['name'] == option.text():
+                    option.setCheckable(True)
+                    option.setChecked(True)
+                    self._camera_dropdown.setText(f'{chosen['name']}')
+                else:
+                    option.setChecked(False)
+                    option.setCheckable(False)
+            else:
+                self._camera_dropdown.setText('No Camera Selected')
+                option.setChecked(False)
+                option.setCheckable(False)
+
+    def custom_camera_popup(self):
+        text, ok = QInputDialog.getText(
+            self,
+            'Choose Camera by URL',
+            'URL:',
+            QLineEdit.EchoMode.Normal,
+            'http://',
+            )
+        if ok:
+            self.change_cam(text)
 
 
 class OrientationsWidget(QWidget):
@@ -448,32 +552,25 @@ class MenuBar(QMenuBar):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.showMaximized()
         self.setWindowTitle('AU Robotics ROV GUI')
         self.setWindowIcon(QIcon(str(APP_ICON)))
 
         self.controller = Controller()
         self.esp = ESP32()
-        self.initUI()
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.updateFrame)
-        self.timer.start(15)
-
-    def initUI(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
-        self.leftCameraWidget = CameraWidget(self, 0)
-        self.middleCameraWidget = CameraWidget(self, 0)
-        self.rightCameraWidget = CameraWidget(self, 2)
-        self.orientationsWidget = OrientationsWidget(self)
-        self.controllerWidget = ControllerDisplay(self.controller)
-        self.thrustersWidget = ThrustersWidget(self)
 
         self.menu_bar = MenuBar(self, self.esp, self.controller)
         self.setMenuBar(self.menu_bar)
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        self.main_camera_widget = CameraWidget(self, 0)
+        self.secondary_camera_widget = CameraWidget(self, 0)
+        self.tertiary_camera_widget = CameraWidget(self, 2)
+        self.orientationsWidget = OrientationsWidget(self)
+        self.controllerWidget = ControllerDisplay(self.controller)
+        self.thrustersWidget = ThrustersWidget(self)
 
         grid = QGridLayout()
 
@@ -487,9 +584,9 @@ class MainWindow(QMainWindow):
         grid.setRowStretch(2, 1)
         grid.setRowStretch(3, 1)
 
-        grid.addWidget(self.leftCameraWidget, 0, 0, 2, 3)
-        grid.addWidget(self.middleCameraWidget, 0, 3, 1, 1)
-        grid.addWidget(self.rightCameraWidget, 1, 3, 1, 1)
+        grid.addWidget(self.main_camera_widget, 0, 0, 2, 3)
+        grid.addWidget(self.secondary_camera_widget, 0, 3, 1, 1)
+        grid.addWidget(self.tertiary_camera_widget, 1, 3, 1, 1)
 
         grid.addWidget(self.orientationsWidget, 2, 0, 2, 1)
 
@@ -497,13 +594,17 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.thrustersWidget, 2, 2, 2, 2)
 
         central_widget.setLayout(grid)
+        self.setMinimumSize(self.size())
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.main_loop)
+        self.timer.start(15)
 
-    def updateFrame(self):
+    def main_loop(self):
         self.orientationsWidget.update()
         self.thrustersWidget.updateThrusters()
-        self.leftCameraWidget.update()
-        self.middleCameraWidget.update()
-        self.rightCameraWidget.update()
+        self.main_camera_widget.update()
+        self.secondary_camera_widget.update()
+        self.tertiary_camera_widget.update()
         self.menu_bar.update()
         if self.esp.connected:
             while self.esp.incoming:

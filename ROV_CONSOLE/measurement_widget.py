@@ -141,6 +141,7 @@ class MeasurementWindow(QWidget):
             QLineEdit.EchoMode.Normal,
             "1",
             )
+        # TODO: add try-except
         if not ok or float(length) == 0:
             self._ref_p2 = None
             return

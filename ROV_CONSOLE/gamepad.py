@@ -21,7 +21,7 @@ import pygame
 
 class BindingNames(dict[str, list[str]], Enum):
     DS4 = {
-        "buttons": [
+        "buttons":  [
             "CROSS",
             "CIRCLE",
             "SQUARE",
@@ -38,10 +38,10 @@ class BindingNames(dict[str, list[str]], Enum):
             "D-LEFT",
             "D-RIGHT",
             "TOUCHPAD",
-        ],
-        "axes": ["LS-H", "LS-V", "RS-H", "RS-V"],
+            ],
+        "axes":     ["LS-H", "LS-V", "RS-H", "RS-V"],
         "triggers": ["L2", "R2"],
-    }
+        }
 
 
 class GamepadTypes(StrEnum):
@@ -119,7 +119,7 @@ class Controller:
         self._refresh_gamepads()
         return [
             f"{gamepad.get_id()}: {gamepad.get_name()}" for gamepad in self._gamepads
-        ]
+            ]
 
     @property
     def connected(self):
@@ -163,7 +163,7 @@ class Controller:
                 buttons = {
                     k: self._gamepad.get_button(i)
                     for i, k in enumerate(BindingNames[self._type]["buttons"])
-                }
+                    }
                 axes = {
                     a: (
                         self._gamepad.get_axis(i)
@@ -171,17 +171,17 @@ class Controller:
                         else 0
                     )
                     for i, a in enumerate(BindingNames[self._type]["axes"])
-                }
+                    }
                 triggers = {
                     t: (
-                        self._gamepad.get_axis(
-                            i + len(BindingNames[self._type]["axes"])
-                        )
-                        + 1
-                    )
-                    / 2
+                               self._gamepad.get_axis(
+                                   i + len(BindingNames[self._type]["axes"])
+                                   )
+                               + 1
+                       )
+                       / 2
                     for i, t in enumerate(BindingNames[self._type]["triggers"])
-                }
+                    }
                 self._bindings_state = {**buttons, **axes, **triggers}
 
                 if self._send_payload is None:
@@ -201,8 +201,8 @@ class Controller:
                     int(254 * self._bindings_state["RS-H"]),
                     int(
                         254 * (self._bindings_state["R2"] - self._bindings_state["L2"])
-                    ),
-                ]
+                        ),
+                    ]
 
                 thruster_payload = [abs(byte) for byte in signed_payload]
                 sign_byte = 0
@@ -235,7 +235,7 @@ class Controller:
 
                 self._send_payload(payload)
         except SystemExit:
-            self.kill()
+            return self.kill()
 
     def kill(self):
         self._killswitch = True

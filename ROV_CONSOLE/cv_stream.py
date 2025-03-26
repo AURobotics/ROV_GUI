@@ -19,6 +19,7 @@ class ConnectionStatus(Enum):
     CONNECTED = auto()
     DISCONNECTED = auto()
     IN_PROGRESS = auto()
+    MIRRORING = auto()
 
 
 class DisconnectReason(Enum):
@@ -58,7 +59,8 @@ class VideoStream:
     _downstreams: list[VideoStream]
     _upstream: Optional[VideoStream]  # VideoStream to mirror while ConnectionStatus.MIRRORING
     _cap_meta: CapMetadata
-    _disconnect_reason: Optional[DisconnectReason]
+    _disconnect_reason: DisconnectReason
+    _disconnect_cam_name: Optional[str]
 
     # CLASS-ONLY ATTRIBUTES
     _pool: list[VideoStream] = []
@@ -75,7 +77,8 @@ class VideoStream:
         self.__class__._register_stream(self)
         self._frame = None
         self._killswitch = False
-        self._disconnect_reason = None
+        self._disconnect_reason = DisconnectReason.DESIRED_DISCONNECT
+        self._disconnect_cam_name = None
         if descriptor is not None:
             self.source = descriptor
         self._frame_thread = Thread(target=self._frame_loop, daemon=True)
@@ -129,6 +132,23 @@ class VideoStream:
         return self.get_available_cameras()
 
     @property
+    def disconnect_message(self):
+        message = ''
+        if self._disconnect_reason == DisconnectReason.DESIRED_DISCONNECT:
+            return message
+        if self._disconnect_cam_name is None:
+            message = 'One of the cameras disconnected unexpectedly'
+        elif self._disconnect_reason == DisconnectReason.RESOURCE_BUSY:
+            message = (f'Camera \'{self._disconnect_cam_name}\' failed to connect or read; in use by other object or '
+                       f'process.')
+        elif self._disconnect_reason == DisconnectReason.INVALID_DESCRIPTOR:
+            message = f'Camera \'{self._disconnect_cam_name}\' failed to connect. Invalid descriptor provided.'
+        elif self._disconnect_reason == DisconnectReason.RESOURCE_UNREACHABLE:
+            message = f'\'{self._disconnect_cam_name}\': unreachable URL provided.'
+        self._disconnect_reason = DisconnectReason.DESIRED_DISCONNECT
+        return message
+
+    @property
     def connection_status(self):
         me = self
         if self._upstream is not None:
@@ -138,6 +158,10 @@ class VideoStream:
     @property
     def disconnect_reason(self) -> DisconnectReason:
         return self._disconnect_reason
+
+    @disconnect_reason.setter
+    def disconnect_reason(self, value: None = None):
+        self._disconnect_reason = DisconnectReason.DESIRED_DISCONNECT
 
     @staticmethod
     def _resolve_cap_type(descriptor: CapMetadata | int | str) -> Optional[CapType]:
@@ -156,10 +180,12 @@ class VideoStream:
         return None
 
     @property
-    def source(self):
+    def source(self) -> Optional[CapMetadata]:
         me = self
         if self._upstream is not None:
             me = self._upstream
+        if me._cap_meta['descriptor'] is None:
+            return None
         return me._cap_meta
 
     @source.setter
@@ -176,21 +202,23 @@ class VideoStream:
         cap_type = self._resolve_cap_type(descriptor)
 
         if cap_type is None:
-            self._disconnect(reason=DisconnectReason.INVALID_DESCRIPTOR)
+            self._disconnect(reason=DisconnectReason.INVALID_DESCRIPTOR, cam_name=descriptor)
             return
         possible_upstream = self.__class__.mirror(self, descriptor)
         if possible_upstream is not None:
             self._disconnect(reason=DisconnectReason.DESIRED_DISCONNECT)
             self._upstream = possible_upstream
+            self._connection_status = ConnectionStatus.MIRRORING
             possible_upstream._downstreams.append(self)
             return
 
         if self._upstream is not None or len(self._downstreams) > 0:
             self._disconnect(reason=DisconnectReason.DESIRED_DISCONNECT)
+
         if cap_type == CapType.DEVICE:
             ok = self._cap.open(descriptor)
             if not ok:
-                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY)
+                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY, cam_name=descriptor)
                 return
             self._cap_meta['type'] = cap_type
             self._cap_meta['descriptor'] = descriptor
@@ -201,7 +229,7 @@ class VideoStream:
             filepath = Path(descriptor).resolve()
             ok = self._cap.open(str(filepath))
             if not ok:
-                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY)
+                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY, cam_name=descriptor)
                 return
             self._cap_meta['type'] = cap_type
             self._cap_meta['name'] = filepath.name
@@ -211,23 +239,27 @@ class VideoStream:
         elif cap_type == CapType.IP:
             reachable = False
             try:
-                response = requests.get(descriptor, timeout=5)
+                response = requests.get(descriptor, timeout=3, stream=True)
                 if response.status_code == 200:
                     reachable = True
+                    response.close()
+                    sleep(2)
             except requests.RequestException:
                 reachable = False
             if not reachable:
-                self._disconnect(reason=DisconnectReason.RESOURCE_UNREACHABLE)
+                self._disconnect(reason=DisconnectReason.RESOURCE_UNREACHABLE, cam_name=descriptor)
                 return
             elif not self._cap.open(descriptor):
-                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY)
+                self._disconnect(reason=DisconnectReason.RESOURCE_BUSY, cam_name=descriptor)
             else:
                 self._connection_status = ConnectionStatus.CONNECTED
                 self._cap_meta['name'] = descriptor
                 self._cap_meta['descriptor'] = descriptor
                 self._cap_meta['type'] = cap_type
 
-    def _disconnect(self, reason: Optional[DisconnectReason], part_of_disconnect_chain=False) -> None:
+    def _disconnect(self, reason: DisconnectReason = DisconnectReason.DESIRED_DISCONNECT,
+                    part_of_disconnect_chain=False, cam_name:
+            Optional[str] = None) -> None:
         if not part_of_disconnect_chain:
             self.__class__._disconnect_in_progress = True
         self._connection_status = ConnectionStatus.DISCONNECTED
@@ -235,6 +267,7 @@ class VideoStream:
             sleep(0.15)
         self._cap.release()
         self._disconnect_reason = reason
+        self._disconnect_cam_name = cam_name
 
         if self._upstream is not None:
             self._upstream._downstreams.remove(self)
@@ -263,6 +296,9 @@ class VideoStream:
         try:
             while not self._killswitch:
                 sleep(0.015)
+                if self._connection_status == ConnectionStatus.DISCONNECTED:
+                    self._frame = None
+                    continue
                 if self._upstream is not None:
                     self._frame = self._upstream._frame
                     continue
@@ -277,7 +313,7 @@ class VideoStream:
                     continue
                 self._frame = None
         except SystemExit:
-            self.kill()
+            return self.kill()
 
     def kill(self):
         self._killswitch = True
