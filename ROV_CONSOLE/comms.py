@@ -16,7 +16,7 @@ from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 readings_schema = Schema(
     {
-        'thrusters':    {"h1": float, "h2": float, "h3": float, "h4": float, "v1": float, "v2": float},
+        'thrusters':    {'h1': float, 'h2': float, 'h3': float, 'h4': float, 'v1': float, 'v2': float},
         'orientation':  {'roll': float, 'pitch': float, 'yaw': float},
         'acceleration': {'x': float, 'y': float, 'z': float},
         'status':       {'led': bool, 'dcv1': bool, 'dcv2': bool},
@@ -40,7 +40,8 @@ class CommunicationManager:
         self._thrusters_widget = thrusters_widget
         self._orientation_widget = orientation_widget
         self._killswitch = False
-        self._comms_thread = Thread(target=self._comms_loop, daemon=True)
+        self._serial_thread = Thread(target=self._serial_loop, daemon=True)
+        self._serial_thread.start()
 
     def update_widgets(self):
         """Updates widgets on main thread, strictly called from main thread"""
@@ -49,7 +50,7 @@ class CommunicationManager:
         else:
             self._controller_widget.display(self._controller.bindings_state)
 
-    def _comms_loop(self):
+    def _serial_loop(self):
         """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
             sleep(0.015)
@@ -64,35 +65,33 @@ class CommunicationManager:
                 self._cache['controller']['TOUCHPAD_debounce'] = 0
             else:
                 consumed: Optional[str] = None
+                readings = None
                 if self._esp.incoming:
                     consumed = self._esp.next_line
-
-                readings = None
-                try:
-                    readings = json.loads(consumed)
-                    readings = readings_schema.validate(readings)
-                except json.JSONDecodeError:
-                    # Consumed message was an error or debug message
-                    readings = None
-                    notification.notify(
-                        title='ROV ERROR',
-                        message=consumed,
-                        timeout=2,
-                        app_name='AU Robotics ROV GUI'
-                        )
-                except SchemaError:
-                    # Consumed message was a malformed readings message
-                    readings = None
+                    try:
+                        readings = json.loads(consumed)
+                        readings = readings_schema.validate(readings)
+                    except json.JSONDecodeError:
+                        # Consumed message was an error or debug message
+                        readings = None
+                        notification.notify(
+                            title='ROV MESSAGE',
+                            message=consumed,
+                            timeout=2,
+                            app_name='AU Robotics ROV GUI'
+                            )
+                    except SchemaError:
+                        # Consumed message was a malformed readings message
+                        readings = None
 
                 if readings is not None:
                     self._cache['thrusters'] = readings['thrusters'].copy()
                     self._cache['orientation'] = readings['orientation'].copy()
 
-                if self._controller is not None:
-                    if self._controller.connected:
-                        self._esp.send(self._controller_payload())
+                if self._controller.connected:
+                    self._esp.send(self._serial_controller_payload())
 
-    def _controller_payload(self):
+    def _serial_controller_payload(self):
         # Keybindings:
         # LStick - Axis 0 (Horizontal): Shift the ROV sideways
         # LStick - Axis 1 (Vertical): Move forward/ backward
@@ -153,5 +152,5 @@ class CommunicationManager:
 
     def __del__(self):
         self._killswitch = True
-        if self._comms_thread.is_alive():
-            self._comms_thread.join()
+        if self._serial_thread.is_alive():
+            self._serial_thread.join()
