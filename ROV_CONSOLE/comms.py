@@ -51,11 +51,12 @@ class CommunicationManager:
             self._controller_widget.display(self._controller.bindings_state)
 
         self._thrusters_widget.display(self._cache['thrusters'])
+        self._orientation_widget.display(self._cache['orientation'])
 
     def _serial_loop(self):
         """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
-            sleep(0.015)
+            sleep(0.005)
             if not self._esp.serial_ready:
                 # Reset the transient part of the cache
                 # Non-transient keys include: controller['leds_and_valves']
