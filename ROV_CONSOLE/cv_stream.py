@@ -14,6 +14,8 @@ import cv2
 import requests
 from cv2_enumerate_cameras import enumerate_cameras
 
+from .constants import NOVIDEO_PICTURE_PATH
+
 
 class ConnectionStatus(Enum):
     CONNECTED = auto()
@@ -50,7 +52,7 @@ _ENUM_API = _ENUMERATION_APIS[os_name]
 
 
 class VideoStream:
-    EMPTY_FRAME = cv2.imread(str(Path(__file__).resolve().parent / 'assets' / 'novideo.png'))
+    EMPTY_FRAME = cv2.imread(NOVIDEO_PICTURE_PATH)
 
     _cap: cv2.VideoCapture
     _connection_status: ConnectionStatus
