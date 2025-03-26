@@ -50,6 +50,8 @@ class CommunicationManager:
         else:
             self._controller_widget.display(self._controller.bindings_state)
 
+        self._thrusters_widget.display(self._cache['thrusters'])
+
     def _serial_loop(self):
         """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
@@ -69,7 +71,7 @@ class CommunicationManager:
                 if self._esp.incoming:
                     consumed = self._esp.next_line
                     try:
-                        readings = json.loads(consumed)
+                        readings = json.loads(consumed, parse_int=float)
                         readings = readings_schema.validate(readings)
                     except json.JSONDecodeError:
                         # Consumed message was an error or debug message

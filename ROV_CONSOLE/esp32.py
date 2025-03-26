@@ -100,7 +100,7 @@ class ESP32:
 
     @property
     def next_line(self):
-        return self._serial.readline().decode()
+        return self._serial.readline().decode().rstrip()
 
     def __del__(self):
         self._serial.close()
