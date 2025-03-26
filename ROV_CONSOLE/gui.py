@@ -12,15 +12,15 @@ from PySide6.QtWidgets import (
     QLineEdit, QMenuBar, QMenu, QToolButton, QSpacerItem, QSizePolicy, )
 from plyer import notification
 
-from .comms import CommunicationManager
-from .constants import APP_ICON, ASSETS_PATH
-from .controller_widget import ControllerDisplay
-from .cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
-from .esp32 import ESP32
-from .gamepad import Controller
-from .measurement_widget import MeasurementWindow
-from .orientation_widget import OrientationWidget
-from .thrusters_widget import ThrustersWidget
+from ROV_CONSOLE.comms import CommunicationManager
+from ROV_CONSOLE.constants import APP_ICON, ASSETS_PATH
+from ROV_CONSOLE.controller_widget import ControllerDisplay
+from ROV_CONSOLE.cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
+from ROV_CONSOLE.esp32 import ESP32
+from ROV_CONSOLE.gamepad import Controller
+from ROV_CONSOLE.measurement_widget import MeasurementWindow
+from ROV_CONSOLE.orientation_widget import OrientationWidget
+from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 
 class CameraWindow(QWidget):
