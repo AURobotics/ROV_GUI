@@ -143,7 +143,7 @@ class CameraWidget(QWidget):
                 app_name='AU Robotics ROV GUI'
                 )
         _devices = self._stream.available_cameras
-        cameras = [{'descriptor': cam, 'name': _devices[cam], 'type': CapType.DEVICE} for cam in _devices]
+        cameras = [CapMetadata(descriptor=cam, name=_devices[cam], type=CapType.DEVICE) for cam in _devices]
         old_custom = None
         for cam in self._cam_menu_stored_cameras:
             if cam not in cameras:
