@@ -38,7 +38,9 @@ class ESP32:
 
     @property
     def connected(self) -> bool:
-        # TODO: maybe don't check if it's resetting?
+        # TODO: maybe check if it's resetting?
+        if self._serial.port is None:
+            return False
         try:
             # Works with actual serial ports, network ports may need a write/ read operation instead to raise exception
             _ = self._serial.in_waiting
@@ -74,10 +76,7 @@ class ESP32:
     def connect(self, port: str) -> None:
         self._serial.close()
         if "rfc2217://" in port and not self._port_over_rfc:
-            print(
-                "Ports over RFC is not fully supported, disconnects will not be detected!",
-                stderr,
-                )
+            print("Ports over RFC is not fully supported, disconnects will not be detected!", file=stderr)
             self._serial = serial.serial_for_url(port, baudrate=self._baudrate)
             self._port_over_rfc = True
             return
