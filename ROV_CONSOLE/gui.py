@@ -1,6 +1,5 @@
 import random
 from functools import partial
-from pathlib import Path
 
 from PySide6.QtCore import QTimer, Qt, QSize
 from PySide6.QtGui import QImage, QPixmap, QPainter, QColor, QPen, QBrush, QIcon, QAction
@@ -15,14 +14,12 @@ from PySide6.QtWidgets import (
     QLineEdit, QMenuBar, QMenu, QToolButton, QSpacerItem, QSizePolicy, )
 from plyer import notification
 
+from .constants import APP_ICON, ASSETS_PATH
 from .controller_widget import ControllerDisplay
 from .cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
 from .esp32 import ESP32
 from .gamepad import Controller
 from .measurement_widget import MeasurementWindow
-
-ASSETS_PATH = Path(__file__).resolve().parent / 'assets'
-APP_ICON = ASSETS_PATH / 'appicon.png'
 
 
 class CameraWidget(QWidget):
@@ -524,10 +521,8 @@ class MenuBar(QMenuBar):
     def toggle_port(self, port):
         if self._esp.port == port:
             self._esp.disconnect()
-            self._controller.payload_callback = None
         else:
             self._esp.connect(port)
-            self._controller.payload_callback = self._esp.send
 
     def manual_port_selection(self):
         text, ok = QInputDialog.getText(
