@@ -456,6 +456,3 @@ class MainWindow(QMainWindow):
         self.tertiary_camera_widget.update()
         self.menu_bar.update()
         self.comms_man.update_widgets()
-        if self.esp.connected:
-            while self.esp.incoming:
-                print(self.esp.next_line)
