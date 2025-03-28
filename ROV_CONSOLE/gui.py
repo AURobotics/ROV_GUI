@@ -411,8 +411,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.main_camera_widget = CameraWidget(self, 0)
-        self.secondary_camera_widget = CameraWidget(self, 0)
-        self.tertiary_camera_widget = CameraWidget(self, 2)
+        self.left_camera_widget = CameraWidget(self, 0)
+        self.right_camera_widget = CameraWidget(self, 2)
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
@@ -429,21 +429,19 @@ class MainWindow(QMainWindow):
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(2, 1)
-        grid.setColumnStretch(3, 1)
 
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 1)
-        grid.setRowStretch(3, 1)
 
-        grid.addWidget(self.main_camera_widget, 0, 0, 2, 3)
-        grid.addWidget(self.secondary_camera_widget, 0, 3, 1, 1)
-        grid.addWidget(self.tertiary_camera_widget, 1, 3, 1, 1)
+        grid.addWidget(self.main_camera_widget, 0, 1, 2, 1)
+        grid.addWidget(self.left_camera_widget, 0, 0, 1, 1)
+        grid.addWidget(self.right_camera_widget, 0, 2, 1, 1)
 
-        grid.addWidget(self.orientationsWidget, 2, 0, 2, 1)
+        grid.addWidget(self.orientationsWidget, 1, 0, 2, 1)
 
-        grid.addWidget(self.controllerWidget, 2, 1, 2, 2)
-        grid.addWidget(self.thrustersWidget, 2, 2, 2, 2)
+        grid.addWidget(self.controllerWidget, 2, 1, 1, 1)
+        grid.addWidget(self.thrustersWidget, 2, 2, 1, 1)
 
         central_widget.setLayout(grid)
         self.setMinimumSize(self.size())
@@ -453,7 +451,7 @@ class MainWindow(QMainWindow):
 
     def main_loop(self):
         self.main_camera_widget.update()
-        self.secondary_camera_widget.update()
-        self.tertiary_camera_widget.update()
+        self.left_camera_widget.update()
+        self.right_camera_widget.update()
         self.menu_bar.update()
         self.comms_man.update_widgets()
