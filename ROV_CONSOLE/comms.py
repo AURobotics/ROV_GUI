@@ -65,6 +65,7 @@ class CommunicationManager:
     def _serial_incoming_loop(self):
         """Updates internal values, runs on separate internal thread"""
         while not self._killswitch:
+            sleep(0.015)
             if not self._esp.serial_ready:
                 # Reset the transient part of the cache
                 # Non-transient keys include: controller['leds_and_valves']
@@ -74,7 +75,6 @@ class CommunicationManager:
                 self._cache['controller']['L1_debounce'] = 0
                 self._cache['controller']['R1_debounce'] = 0
                 self._cache['controller']['TOUCHPAD_debounce'] = 0
-                sleep(0.015)
             else:
                 consumed: Optional[str] = None
                 readings = None
