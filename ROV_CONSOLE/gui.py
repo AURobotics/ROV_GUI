@@ -49,7 +49,7 @@ class CameraWidget(QWidget):
         super().__init__(parent)
         self._stream = VideoStream(cam)
         self._view = QLabel(self)
-        self._view.setScaledContents(True)
+        self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self._empty_frame = self._pixmap_from_frame(self._stream.EMPTY_FRAME)
         self.h_mirror = False
         self.v_mirror = False
@@ -159,6 +159,7 @@ class CameraWidget(QWidget):
 
     def update(self):
         pix = self._pixmap_from_stream()
+        pix = pix.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
         self._view.setPixmap(pix)
         if self._maximized_popup is not None:
             if not self._maximized_popup.isVisible():
