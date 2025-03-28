@@ -16,8 +16,6 @@ class ControllerDisplay(QWidget):
         self._view.setText('Please connect a controller')
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
 
-        self._view.setScaledContents(True)
-
         self.buttons = {
             'CIRCLE': {
                 'size':     QSize(50, 50),
@@ -82,13 +80,13 @@ class ControllerDisplay(QWidget):
                       {
                           'size':     QSize(70, 70),
                           'icons':    (DS4_ICONS['R1'], DS4_ICONS['R1-1']),
-                          'position': (410, 40)
+                          'position': (400, 40)
                           },
             'R2':
                       {
                           'size':     QSize(70, 70),
                           'icons':    (DS4_ICONS['R2'], DS4_ICONS['R2-1']),
-                          'position': (410, 0)
+                          'position': (400, 0)
                           },
             'LS':
                       {
@@ -130,13 +128,13 @@ class ControllerDisplay(QWidget):
                       {
                           'size':     QSize(70, 70),
                           'icons':    (DS4_ICONS['SHARE'], DS4_ICONS['SHARE-1']),
-                          'position': (100, 0)
+                          'position': (60, 0)
                           },
             'OPTIONS':
                       {
                           'size':     QSize(70, 70),
                           'icons':    (DS4_ICONS['OPTIONS'], DS4_ICONS['OPTIONS-1']),
-                          'position': (300, 0)
+                          'position': (340, 0)
                           }
             }
 
@@ -169,11 +167,11 @@ class ControllerDisplay(QWidget):
         for b, meta in self.buttons.items():
             if b == 'R3':
                 painter.drawPixmap(meta['position'][0] + states['RS-H'] * 10, meta['position'][1] + states['RS-V'] * 10,
-                                   meta['pixes'][0])
+                                   meta['pixes'][states[b] > 0])
                 continue
             if b == 'L3':
                 painter.drawPixmap(meta['position'][0] + states['LS-H'] * 10, meta['position'][1] + states['LS-V'] * 10,
-                                   meta['pixes'][0])
+                                   meta['pixes'][states[b] > 0])
                 continue
             if b in ['RS', 'LS']:
                 painter.drawPixmap(meta['position'][0], meta['position'][1], meta['pixes'][0])
@@ -181,11 +179,6 @@ class ControllerDisplay(QWidget):
             painter.drawPixmap(meta['position'][0], meta['position'][1], meta['pixes'][states[b] > 0])
 
         painter.end()
+        canvas = canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
         self._view.setPixmap(canvas)
-
-        # ls_x = states['LS-H'] * 10 + int(self.button_scheme['L3']['position'][0])
-        # ls_y = states['LS-V'] * 10 + int(self.button_scheme['L3']['position'][1])
-        # rs_x = states['RS-H'] * 10 + int(self.button_scheme['R3']['position'][0])
-        # rs_y = states['RS-V'] * 10 + int(self.button_scheme['R3']['position'][1])
-        # self.buttons['L3'].move(ls_x, ls_y)
-        # self.buttons['R3'].move(rs_x, rs_y)
