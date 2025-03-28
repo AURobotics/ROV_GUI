@@ -50,7 +50,7 @@ class CameraWidget(QWidget):
         self._stream = VideoStream(cam)
         self._view = QLabel(self)
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-        self._empty_frame = self._pixmap_from_frame(self._stream.EMPTY_FRAME)
+        self._empty_frame = self._pixmap_from_frame(VideoStream.EMPTY_FRAME)
         self.h_mirror = False
         self.v_mirror = False
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
