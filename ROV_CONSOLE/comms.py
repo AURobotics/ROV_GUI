@@ -77,8 +77,9 @@ class CommunicationManager:
                 self._cache['controller']['TOUCHPAD_debounce'] = 0
             else:
                 consumed: Optional[str] = None
-                readings = None
+
                 while self._esp.incoming:
+                    readings = None
                     # TODO: Tolerate sudden disconnect
                     consumed = self._esp.next_line
                     try:
@@ -97,9 +98,9 @@ class CommunicationManager:
                         # Consumed message was a malformed readings message
                         readings = None
 
-                if readings is not None:
-                    self._cache['thrusters'] = readings['thrusters'].copy()
-                    self._cache['orientation'] = readings['orientation'].copy()
+                    if readings is not None:
+                        self._cache['thrusters'] = readings['thrusters'].copy()
+                        self._cache['orientation'] = readings['orientation'].copy()
 
     def _serial_controller_payload(self):
         # Keybindings:
