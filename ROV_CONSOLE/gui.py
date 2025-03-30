@@ -260,7 +260,7 @@ class CameraWidget(QWidget):
         else:
             self._camera_menulist.removeAction(self._cam_menu_no_cam_indicator)
         for cam in new_cameras:
-            option = QAction(f'{cam["name"]}')
+            option = QAction(f'{cam['name']}')
 
             self._camera_menulist.insertAction(self._cam_menu_sep, option)
             f = partial(self.change_cam, cam['descriptor'])
@@ -274,7 +274,7 @@ class CameraWidget(QWidget):
 
         for cam in old_cameras:
             for option in self._cam_menu_displayed_cams:
-                if option.text() == f'{cam["name"]}':
+                if option.text() == f'{cam['name']}':
                     f = self._cam_menu_slots.pop(cam['descriptor'])
                     option.triggered.disconnect(f)
                     self._camera_menulist.removeAction(option)
@@ -283,7 +283,7 @@ class CameraWidget(QWidget):
 
         if new_custom is not None:
             self._cam_menu_stored_cameras.append(new_custom)
-            option = QAction(f'{new_custom["name"]}')
+            option = QAction(f'{new_custom['name']}')
             self._camera_menulist.insertAction(self._cam_menu_add_custom, option)
             f = partial(self.change_cam, new_custom['descriptor'])
             self._cam_menu_slots.update({new_custom['descriptor']: f})
@@ -295,7 +295,7 @@ class CameraWidget(QWidget):
                 if chosen['name'] == option.text():
                     option.setCheckable(True)
                     option.setChecked(True)
-                    self._camera_dropdown.setText(f'{chosen["name"]}')
+                    self._camera_dropdown.setText(f'{chosen['name']}')
                 else:
                     option.setChecked(False)
                     option.setCheckable(False)
