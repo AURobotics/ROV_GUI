@@ -33,11 +33,13 @@ class ThrustersWidget(QLabel):
                 }
             }
         self._reset_flag = False
+        self._canvas = None
 
     def resizeEvent(self, event):
         self.resize(event.size())
-        self.setPixmap(self.pixmap().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                            Qt.TransformationMode.SmoothTransformation))
+        if self._canvas is not None:
+            self.setPixmap(self._canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                               Qt.TransformationMode.SmoothTransformation))
 
     def display(self, values: Optional[dict]):
         if values is None:
@@ -103,4 +105,5 @@ class ThrustersWidget(QLabel):
         painter.end()
         canvas = canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation)
+        self._canvas = canvas
         self.setPixmap(canvas)

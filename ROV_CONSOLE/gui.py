@@ -241,7 +241,7 @@ class CameraWidget(QWidget):
                 title='Camera Disconnected',
                 message=self._stream.disconnect_message,
                 timeout=2,
-                app_name='AU Robotics ROV GUI',
+                app_name='AU Robotics - Console',
                 app_icon=str(APP_ICON)
                 )
         _devices = self._stream.available_cameras
@@ -464,6 +464,7 @@ class MenuBar(QMenuBar):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # initialize pygame before setting window properties from Qt
         self.controller = Controller()
         conf = Config()
 

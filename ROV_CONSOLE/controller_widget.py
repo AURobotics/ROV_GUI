@@ -166,11 +166,12 @@ class ControllerDisplay(QLabel):
         painter.drawText(0, 0, 2300, 1300, Qt.AlignmentFlag.AlignCenter, text)
         painter.end()
         self._no_controller_frame = canvas
+        self._canvas = self._no_controller_frame
 
     def resizeEvent(self, event):
         self.resize(event.size())
-        self.setPixmap(self.pixmap().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                            Qt.TransformationMode.SmoothTransformation))
+        self.setPixmap(self._canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation))
 
     def display(self, states=Optional[dict]):
         if states is None:
@@ -204,4 +205,5 @@ class ControllerDisplay(QLabel):
         painter.end()
         canvas = canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation)
+        self._canvas = canvas
         self.setPixmap(canvas)

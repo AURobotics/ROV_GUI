@@ -13,3 +13,5 @@ venv/
 # Deployment/ Runtime ignores
 config.json
 deployment/
+build/
+dist/
