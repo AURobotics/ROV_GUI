@@ -79,6 +79,7 @@ class CameraWidget(QWidget):
         self._widget_position = widget_pos
         self._main_widget_ref = main_widget_ref
         self._stream = VideoStream(cam)
+        self._last_known_url = str(cam)
         self._view = QLabel(self)
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         ef = VideoStream.EMPTY_FRAME
@@ -255,6 +256,8 @@ class CameraWidget(QWidget):
         if chosen is not None:
             chosen = chosen.copy()
         new_custom = chosen if chosen not in cameras and chosen != old_custom else None
+        if new_custom is not None:
+            self._last_known_url = new_custom
         new_cameras = [cam for cam in cameras if cam not in self._cam_menu_stored_cameras]
         old_cameras = [cam for cam in self._cam_menu_stored_cameras if cam not in cameras and cam != old_custom]
 
@@ -314,7 +317,7 @@ class CameraWidget(QWidget):
             'Choose Camera by URL',
             'URL:',
             QLineEdit.EchoMode.Normal,
-            'http://',
+            self._last_known_url,
             )
         if ok:
             self.change_cam(text)
