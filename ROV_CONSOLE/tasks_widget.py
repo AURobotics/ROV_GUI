@@ -126,15 +126,32 @@ class TasksWidget(QListWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.itemDoubleClicked.connect(self._edit_task)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setSelectionRectVisible(False)
 
         if tasks is not None:
             for t in tasks:
                 item = QListWidgetItem()
                 self.addItem(item)
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
                 task = Task(t, partial(self._del_task, item))
                 item.setSizeHint(task.sizeHint())
                 self.setItemWidget(item, task)
+
+        add_button = QPushButton('Add Task')
+        add_button.setFont(QFont('Arial', 16))
+        add_button.clicked.connect(self._new_task)
+        self.add_task_item = QListWidgetItem()
+        self.add_task_item.setSizeHint(add_button.sizeHint())
+        self.addItem(self.add_task_item)
+        self.add_task_item.setFlags(
+            self.add_task_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsSelectable)
+        self.setItemWidget(self.add_task_item, add_button)
+
+    def _new_task(self):
+        item = QListWidgetItem()
+        self.insertItem(self.row(self.add_task_item), item)
+        task = Task('New Task', partial(self._del_task, item))
+        item.setSizeHint(task.sizeHint())
+        self.setItemWidget(item, task)
 
     def _edit_task(self, item: QListWidgetItem):
         task = self.itemWidget(item)
