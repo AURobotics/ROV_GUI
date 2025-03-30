@@ -72,7 +72,7 @@ class VideoStream:
 
     def __init__(self, descriptor: Optional[int, str] = None):
         self._cap = cv2.VideoCapture()
-        self._cap_meta = {'type': None, 'descriptor': None, 'name': None}
+        self._cap_meta = CapMetadata(type=None, descriptor=None, name=None)
         self._upstream = None
         self._downstreams = []
         self._connection_status = ConnectionStatus.DISCONNECTED
@@ -177,7 +177,7 @@ class VideoStream:
                 return CapType.FILE
             else:
                 return CapType.IP
-        if type(descriptor) is CapMetadata:
+        if isinstance(descriptor, dict):
             return descriptor['type']
         return None
 
@@ -192,7 +192,7 @@ class VideoStream:
 
     @source.setter
     def source(self, descriptor: Optional[CapMetadata | int | str]):
-        if type(descriptor) is CapMetadata:
+        if isinstance(descriptor, dict):
             descriptor = descriptor['descriptor']
         if descriptor == self._cap_meta['descriptor']:
             return
