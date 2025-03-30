@@ -45,17 +45,37 @@ class CameraWindow(QWidget):
 
 
 class CameraWidget(QWidget):
-    def __init__(self, parent, cam):
+    _widget_position = CameraWidgetPosition
+    _stream: VideoStream
+    _view: QLabel
+    _empty_frame: QPixmap
+    _mirror_h: bool
+    _mirror_v: bool
+    _grid: QGridLayout
+    _camera_dropdown: QToolButton
+    _camera_menulist = QMenu
+    _cam_menu_displayed_cams: list[QAction]
+    _cam_menu_slots: dict[int | str:partial]
+    _cam_menu_stored_cameras: list[CapMetadata]
+    _cam_menu_no_cam_indicator = QAction
+    _cam_menu_sep: QAction
+    _cam_menu_add_custom: QAction
+    _maximized_popup: Optional[CameraWindow]
+
+    def __init__(self, parent, cam, widget_pos: CameraWidgetPosition, main_widget_ref: Optional[CameraWidget] = None):
         super().__init__(parent)
         self._stream = VideoStream(cam)
         self._view = QLabel(self)
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
-        self._empty_frame = self._pixmap_from_frame(VideoStream.EMPTY_FRAME)
-        self.h_mirror = False
-        self.v_mirror = False
+        ef = VideoStream.EMPTY_FRAME
+        self._empty_frame = QPixmap(
+            QImage(ef.data, ef.shape[1], ef.shape[0], ef.strides[0], QImage.Format.Format_BGR888))
+        self._mirror_h = False
+        self._mirror_v = False
+
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
-        self._bottom_toolbar = QGridLayout()
-        self.setLayout(self._bottom_toolbar)
+        self._grid = QGridLayout()
+        self.setLayout(self._grid)
 
         toolbar_buttons = {
             'hflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-horizontal.svg')), 'function': self.hflip},
@@ -64,48 +84,51 @@ class CameraWidget(QWidget):
             'pano':        {'icon': QIcon(str(ASSETS_PATH / 'pano.svg')), 'function': None},
             'maximize':    {'icon': QIcon(str(ASSETS_PATH / 'maximize.svg')), 'function': self.launch_maximized},
             }
-        self._bottom_toolbar.setRowStretch(8, 1)  # Add 9 empty rows
-        pos = [9, 0]  # Utilize the 10th (forces it to be the bottom-most row)
+
+        # Set-up a grid layout with 10 evenly spaced rows
+        for i in range(0, 9):
+            self._grid.setRowStretch(i, 1)
+        col = 0  # Utilize the 10th (forces it to be the bottom-most row)
         for b in toolbar_buttons:
             pb = QPushButton(toolbar_buttons[b]['icon'], '')
             pb.setIconSize(QSize(24, 24))
             pb.clicked.connect(toolbar_buttons[b]['function'])
             pb.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             pb.setVisible(False)
-            self._bottom_toolbar.addWidget(pb, *pos, 1, 1)
-            pos[1] += 1
-            self._bottom_toolbar.addItem(
+            self._grid.addWidget(pb, 9, col, 1, 1)
+            col += 1
+            self._grid.addItem(
                 QSpacerItem(24, 24, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding),
                 *pos, 1, 1)
             pos[1] += 1
         self._camera_dropdown = QToolButton(self)
         self._camera_dropdown.setVisible(False)
 
-        self._camera_dropdown.setText('Camera Disconnected')
+        self._camera_dropdown.setText('No Cameras Found')
         self._camera_menulist = QMenu(self)  # Could be rewritten as a QComboBox
         self._camera_dropdown.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._camera_dropdown.setMenu(self._camera_menulist)
         self._camera_dropdown.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
 
-        self._cam_menu_displayed_cams: list[QAction] = []
-        self._cam_menu_slots: dict[int | str:partial] = {}
-        self._cam_menu_stored_cameras: list[CapMetadata] = []
+        self._cam_menu_displayed_cams = []
+        self._cam_menu_slots = {}
+        self._cam_menu_stored_cameras = []
 
-        self._cam_menu_no_cam_indicator = QAction('Camera Disconnected')
+        self._cam_menu_no_cam_indicator = QAction('No Cameras Found')
         self._cam_menu_no_cam_indicator.setEnabled(False)
         self._camera_menulist.addAction(self._cam_menu_no_cam_indicator)
         self._cam_menu_sep = self._camera_menulist.addSeparator()
         self._cam_menu_add_custom = self._camera_menulist.addAction('Custom URL')
         self._cam_menu_add_custom.triggered.connect(self.custom_camera_popup)
-        self._bottom_toolbar.addWidget(self._camera_dropdown, *pos, 1, 1)
-        self.setLayout(self._bottom_toolbar)
+        self._grid.addWidget(self._camera_dropdown, 9, col, 1, 1)
+        self.setLayout(self._grid)
         self._maximized_popup = None
 
     def hflip(self):
-        self.h_mirror = not self.h_mirror
+        self._mirror_h = not self._mirror_h
 
     def vflip(self):
-        self.v_mirror = not self.v_mirror
+        self._mirror_v = not self._mirror_v
 
     def launch_maximized(self):
         if self._maximized_popup is None:
@@ -114,18 +137,18 @@ class CameraWidget(QWidget):
     def enterEvent(self, event):
         for i in range(self._bottom_toolbar.count()):
             item = self._bottom_toolbar.itemAt(i)
+        for i in range(self._grid.count()):
+            item = self._grid.itemAt(i)
             if item and item.widget():
                 item.widget().setVisible(True)
 
     def leaveEvent(self, event):
         for i in range(self._bottom_toolbar.count()):
             item = self._bottom_toolbar.itemAt(i)
+        for i in range(self._grid.count()):
+            item = self._grid.itemAt(i)
             if item and item.widget():
                 item.widget().setVisible(False)
-
-    def _pixmap_from_frame(self, frame):
-        return QPixmap(
-            QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format.Format_BGR888))
 
     def _pixmap_from_stream(self):
         frame = self._stream.frame
@@ -139,7 +162,7 @@ class CameraWidget(QWidget):
                 frame.strides[0],
                 QImage.Format.Format_BGR888,
                 )
-            .mirrored(horizontally=self.h_mirror, vertically=self.v_mirror)
+            .mirrored(horizontally=self._mirror_h, vertically=self._mirror_v)
         )
         return QPixmap.fromImage(q_image)
 
@@ -158,14 +181,21 @@ class CameraWidget(QWidget):
         self._stream.source = cam
 
     def update(self):
-        pix = self._pixmap_from_stream()
-        pix = pix.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
-        self._view.setPixmap(pix)
+        # Set frame
+        frame_pixmap = self._pixmap_from_stream()
+        frame_pixmap = frame_pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        self._view.setPixmap(frame_pixmap)
+
+        # Check if a maximized view was launched
         if self._maximized_popup is not None:
+            # Check if it was closed
             if not self._maximized_popup.isVisible():
                 self._maximized_popup = None
             else:
-                self._maximized_popup.update_(pix)
+                # Send the current frame
+                self._maximized_popup.update_(frame_pixmap)
+
+        # Handling connection status and switching cameras
         if self._stream.connection_status == ConnectionStatus.IN_PROGRESS:
             self._camera_dropdown.setText('Connecting..')
             return
