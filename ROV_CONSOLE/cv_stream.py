@@ -72,7 +72,7 @@ class VideoStream:
 
     def __init__(self, descriptor: Optional[int, str] = None):
         self._cap = cv2.VideoCapture()
-        self._cap_meta = {'type': None, 'descriptor': None, 'name': None}
+        self._cap_meta = CapMetadata(type=None, descriptor=None, name=None)
         self._upstream = None
         self._downstreams = []
         self._connection_status = ConnectionStatus.DISCONNECTED
@@ -177,7 +177,7 @@ class VideoStream:
                 return CapType.FILE
             else:
                 return CapType.IP
-        if type(descriptor) is CapMetadata:
+        if isinstance(descriptor, dict):
             return descriptor['type']
         return None
 
@@ -188,13 +188,16 @@ class VideoStream:
             me = self._upstream
         if me._cap_meta['descriptor'] is None:
             return None
-        return me._cap_meta
+        return me._cap_meta.copy()
 
     @source.setter
     def source(self, descriptor: Optional[CapMetadata | int | str]):
-        if type(descriptor) is CapMetadata:
+        if isinstance(descriptor, dict):
             descriptor = descriptor['descriptor']
-        if descriptor == self._cap_meta['descriptor']:
+        if self._upstream is not None:
+            if descriptor == self._upstream._cap_meta['descriptor']:
+                return
+        elif descriptor == self._cap_meta['descriptor']:
             return
         if self._connection_status == ConnectionStatus.IN_PROGRESS: return
         self._connection_status = ConnectionStatus.IN_PROGRESS
