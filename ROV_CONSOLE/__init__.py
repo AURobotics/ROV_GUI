@@ -1,9 +1,16 @@
+from sys import argv, platform, exit
+
 from PySide6.QtWidgets import QApplication
-import sys
+
+from .constants import APP_ICON
 from .gui import MainWindow
 
+
 def main():
-    app = QApplication(sys.argv)
+    app = QApplication(argv)
+    if platform.startswith('win'):
+        from ctypes import windll
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID('AUR.ROVConsole.GUI.1')
     window = MainWindow()
     ret = app.exec()
-    sys.exit(ret)
+    exit(ret)

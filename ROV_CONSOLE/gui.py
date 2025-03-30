@@ -18,7 +18,7 @@ from plyer import notification
 
 from ROV_CONSOLE.comms import CommunicationManager
 from ROV_CONSOLE.conf import Config
-from ROV_CONSOLE.constants import APP_ICON, ASSETS_PATH
+from ROV_CONSOLE.constants import APP_ICON, CAMERA_ICONS
 from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
 from ROV_CONSOLE.esp32 import ESP32
@@ -92,11 +92,12 @@ class CameraWidget(QWidget):
         self.setLayout(self._grid)
 
         toolbar_buttons = {
-            'hflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-horizontal.svg')), 'function': self.hflip},
-            'vflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-vertical.svg')), 'function': self.vflip},
-            'measurement': {'icon': QIcon(str(ASSETS_PATH / 'ruler.svg')), 'function': self._launch_length_measurement},
-            'pano':        {'icon': QIcon(str(ASSETS_PATH / 'pano.svg')), 'function': None},
-            'maximize':    {'icon': QIcon(str(ASSETS_PATH / 'maximize.svg')), 'function': self.launch_maximized},
+            'hflip':       {'icon': QIcon(str(CAMERA_ICONS / 'flip-horizontal.svg')), 'function': self.hflip},
+            'vflip':       {'icon': QIcon(str(CAMERA_ICONS / 'flip-vertical.svg')), 'function': self.vflip},
+            'measurement': {'icon':     QIcon(str(CAMERA_ICONS / 'ruler.svg')),
+                            'function': self._launch_length_measurement},
+            'pano':        {'icon': QIcon(str(CAMERA_ICONS / 'pano.svg')), 'function': None},
+            'maximize':    {'icon': QIcon(str(CAMERA_ICONS / 'maximize.svg')), 'function': self.launch_maximized},
             }
 
         # Set up a grid layout with 10 evenly spaced rows
@@ -117,7 +118,7 @@ class CameraWidget(QWidget):
             col += 1
         if self._widget_position != CameraWidgetPosition.MAIN:
             self._swap_button = QPushButton(self)
-            self._swap_button.setIcon(QIcon(str(ASSETS_PATH / 'swap.svg')))
+            self._swap_button.setIcon(QIcon(str(CAMERA_ICONS / 'swap.svg')))
             self._swap_button.setVisible(False)
             self._swap_button.setIconSize(QSize(24, 24))
             self._swap_button.clicked.connect(self._swap)
@@ -240,7 +241,8 @@ class CameraWidget(QWidget):
                 title='Camera Disconnected',
                 message=self._stream.disconnect_message,
                 timeout=2,
-                app_name='AU Robotics ROV GUI'
+                app_name='AU Robotics ROV GUI',
+                app_icon=str(APP_ICON)
                 )
         _devices = self._stream.available_cameras
         cameras = [CapMetadata(descriptor=cam, name=_devices[cam], type=CapType.DEVICE) for cam in _devices]
@@ -462,15 +464,15 @@ class MenuBar(QMenuBar):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.showMaximized()
-        self.setWindowTitle('AU Robotics ROV GUI')
-        self.setWindowIcon(QIcon(str(APP_ICON)))
-
+        self.controller = Controller()
         conf = Config()
 
-        self.controller = Controller()
         self.esp = ESP32()
         self.esp.port = conf.com_port
+
+        self.setWindowTitle('AU Robotics ROV GUI')
+        self.setWindowIcon(QIcon(str(APP_ICON)))
+        self.showMaximized()
 
         self.menu_bar = MenuBar(self, self.esp, self.controller)
         self.setMenuBar(self.menu_bar)

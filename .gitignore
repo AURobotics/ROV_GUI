@@ -1,6 +1,7 @@
 # Python-related ignores
 
 .venv/
+.venv*/
 pyqt-env/
 venv/
 */__pycache__/
@@ -9,5 +10,6 @@ venv/
 .idea/
 .vscode/
 
-# Environment/ Runtime config ignores
+# Deployment/ Runtime ignores
 config.json
+deployment/
