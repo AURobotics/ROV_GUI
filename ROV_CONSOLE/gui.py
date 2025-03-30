@@ -171,6 +171,8 @@ class CameraWidget(QWidget):
                 item.widget().setVisible(True)
 
     def leaveEvent(self, event):
+        if self._camera_menulist.isVisible():
+            return
         if self._widget_position != CameraWidgetPosition.MAIN:
             self._swap_button.setVisible(False)
         for i in range(self._grid.count()):
