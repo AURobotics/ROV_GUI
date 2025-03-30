@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from plyer import notification
 
 from ROV_CONSOLE.comms import CommunicationManager
+from ROV_CONSOLE.conf import Config
 from ROV_CONSOLE.constants import APP_ICON, ASSETS_PATH
 from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
@@ -465,8 +466,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('AU Robotics ROV GUI')
         self.setWindowIcon(QIcon(str(APP_ICON)))
 
+        conf = Config()
+
         self.controller = Controller()
         self.esp = ESP32()
+        self.esp.port = conf.com_port
 
         self.menu_bar = MenuBar(self, self.esp, self.controller)
         self.setMenuBar(self.menu_bar)
@@ -474,13 +478,15 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        self.main_camera_widget = CameraWidget(self, 0, CameraWidgetPosition.MAIN)
-        self.left_camera_widget = CameraWidget(self, 0, CameraWidgetPosition.LEFT, self.main_camera_widget)
-        self.right_camera_widget = CameraWidget(self, 2, CameraWidgetPosition.RIGHT, self.main_camera_widget)
+        self.main_camera_widget = CameraWidget(self, conf.main_camera, CameraWidgetPosition.MAIN)
+        self.left_camera_widget = CameraWidget(self, conf.left_camera, CameraWidgetPosition.LEFT,
+                                               self.main_camera_widget)
+        self.right_camera_widget = CameraWidget(self, conf.right_camera, CameraWidgetPosition.RIGHT,
+                                                self.main_camera_widget)
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
-        self.tasksWidget = TasksWidget(self)
+        self.tasksWidget = TasksWidget(self, conf.tasks)
 
         self.comms_man = CommunicationManager(
             esp=self.esp, controller=self.controller,

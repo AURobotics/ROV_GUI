@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable
+from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QFont, QKeyEvent
@@ -121,20 +121,20 @@ class Task(QWidget):
 
 
 class TasksWidget(QListWidget):
-    def __init__(self, parent: QWidget):
+    def __init__(self, parent: QWidget, tasks: Optional[list[str]]):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         self.itemDoubleClicked.connect(self._edit_task)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
 
-        def_tasks = ['Task 1', 'Task 2', 'Task 1']
-        for t in def_tasks:
-            item = QListWidgetItem()
-            self.addItem(item)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
-            task = Task(t, partial(self._del_task, item))
-            item.setSizeHint(task.sizeHint())
-            self.setItemWidget(item, task)
+        if tasks is not None:
+            for t in tasks:
+                item = QListWidgetItem()
+                self.addItem(item)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+                task = Task(t, partial(self._del_task, item))
+                item.setSizeHint(task.sizeHint())
+                self.setItemWidget(item, task)
 
     def _edit_task(self, item: QListWidgetItem):
         task = self.itemWidget(item)
