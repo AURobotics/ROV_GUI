@@ -342,7 +342,7 @@ class MenuBar(QMenuBar):
         self._controller_menu = self.addMenu('Controller')
         self._displayed_controllers: list[QAction] = []
         self._stored_controllers: list[str] = []
-        self._gp_menu_none_connected = QAction('No ControllerS Connected')
+        self._gp_menu_none_connected = QAction('No Controllers Connected')
         self._gp_menu_none_connected.setEnabled(False)
         self._gp_slots: dict[str:partial] = {}
 

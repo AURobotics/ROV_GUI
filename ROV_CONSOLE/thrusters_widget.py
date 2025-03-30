@@ -42,7 +42,7 @@ class ThrustersWidget(QWidget):
         if values is None:
             if not self.reset_flag:
                 self.reset_flag = True
-                self._view.setText('ESP DISCONNECTED')
+                self._view.setText('Please connect to a serial port.')
             return
         self.reset_flag = False
 
