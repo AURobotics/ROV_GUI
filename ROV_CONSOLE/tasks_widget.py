@@ -2,7 +2,7 @@ from functools import partial
 from typing import Callable, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon, QFont, QKeyEvent
+from PySide6.QtGui import QIcon, QFont, QKeyEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget,
                                QListWidget,
                                QSizePolicy,
@@ -139,16 +139,23 @@ class TasksWidget(QListWidget):
         add_button = QPushButton('Add Task')
         add_button.setFont(QFont('Arial', 16))
         add_button.clicked.connect(self._new_task)
-        self.add_task_item = QListWidgetItem()
-        self.add_task_item.setSizeHint(add_button.sizeHint())
-        self.addItem(self.add_task_item)
-        self.add_task_item.setFlags(
-            self.add_task_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsSelectable)
-        self.setItemWidget(self.add_task_item, add_button)
+        self._add_task_item = QListWidgetItem()
+        self._add_task_item.setSizeHint(add_button.sizeHint())
+        self.addItem(self._add_task_item)
+        self._add_task_item.setFlags(
+            self._add_task_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsSelectable)
+        self.setItemWidget(self._add_task_item, add_button)
+
+    def dropEvent(self, event: QDropEvent):
+        target_item = self.itemAt(event.pos())
+        if target_item == self._add_task_item or target_item is None:
+            event.ignore()
+            return
+        super().dropEvent(event)
 
     def _new_task(self):
         item = QListWidgetItem()
-        self.insertItem(self.row(self.add_task_item), item)
+        self.insertItem(self.row(self._add_task_item), item)
         task = Task('New Task', partial(self._del_task, item))
         item.setSizeHint(task.sizeHint())
         self.setItemWidget(item, task)
