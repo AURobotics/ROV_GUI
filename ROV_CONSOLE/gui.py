@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+import enum
 from functools import partial
+from typing import Optional
 
 from PySide6.QtCore import QTimer, Qt, QSize
 from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication
@@ -31,17 +35,23 @@ class CameraWindow(QWidget):
         width, height = QGuiApplication.primaryScreen().size().toTuple()
         width //= 2
         height //= 2
-        self._frame = QLabel(self)
+        self._view = QLabel(self)
         self.resize(width, height)
-        self._frame.setScaledContents(True)
+        self._view.setScaledContents(True)
         self.setWindowTitle("Video Stream")
         self.show()
 
     def resizeEvent(self, event):
-        self._frame.resize(event.size())
+        self._view.resize(event.size())
 
     def update_(self, pix):
-        self._frame.setPixmap(pix)
+        self._view.setPixmap(pix)
+
+
+class CameraWidgetPosition(enum.Enum):
+    MAIN = enum.auto()
+    RIGHT = enum.auto()
+    LEFT = enum.auto()
 
 
 class CameraWidget(QWidget):
@@ -64,6 +74,8 @@ class CameraWidget(QWidget):
 
     def __init__(self, parent, cam, widget_pos: CameraWidgetPosition, main_widget_ref: Optional[CameraWidget] = None):
         super().__init__(parent)
+        self._widget_position = widget_pos
+        self._main_widget_ref = main_widget_ref
         self._stream = VideoStream(cam)
         self._view = QLabel(self)
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -99,8 +111,19 @@ class CameraWidget(QWidget):
             col += 1
             self._grid.addItem(
                 QSpacerItem(24, 24, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding),
-                *pos, 1, 1)
-            pos[1] += 1
+                9, col, 1, 1)
+            col += 1
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button = QPushButton(self)
+            self._swap_button.setIcon(QIcon(str(ASSETS_PATH / 'swap.svg')))
+            self._swap_button.setVisible(False)
+            self._swap_button.setIconSize(QSize(24, 24))
+            self._swap_button.clicked.connect(self._swap)
+            if self._widget_position == CameraWidgetPosition.RIGHT:
+                self._grid.addWidget(self._swap_button, 4, 0, 1, 1)
+            if self._widget_position == CameraWidgetPosition.LEFT:
+                self._grid.addWidget(self._swap_button, 4, 11, 1, 1)
+
         self._camera_dropdown = QToolButton(self)
         self._camera_dropdown.setVisible(False)
 
@@ -124,6 +147,11 @@ class CameraWidget(QWidget):
         self.setLayout(self._grid)
         self._maximized_popup = None
 
+    def _swap(self):
+        main_src = self._main_widget_ref._stream.source
+        self._main_widget_ref._stream.source = self._stream.source
+        self._stream.source = main_src
+
     def hflip(self):
         self._mirror_h = not self._mirror_h
 
@@ -135,16 +163,16 @@ class CameraWidget(QWidget):
             self._maximized_popup = CameraWindow(self)
 
     def enterEvent(self, event):
-        for i in range(self._bottom_toolbar.count()):
-            item = self._bottom_toolbar.itemAt(i)
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button.setVisible(True)
         for i in range(self._grid.count()):
             item = self._grid.itemAt(i)
             if item and item.widget():
                 item.widget().setVisible(True)
 
     def leaveEvent(self, event):
-        for i in range(self._bottom_toolbar.count()):
-            item = self._bottom_toolbar.itemAt(i)
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button.setVisible(False)
         for i in range(self._grid.count()):
             item = self._grid.itemAt(i)
             if item and item.widget():
@@ -440,9 +468,9 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        self.main_camera_widget = CameraWidget(self, 0)
-        self.left_camera_widget = CameraWidget(self, 0)
-        self.right_camera_widget = CameraWidget(self, 2)
+        self.main_camera_widget = CameraWidget(self, 0, CameraWidgetPosition.MAIN)
+        self.left_camera_widget = CameraWidget(self, 0, CameraWidgetPosition.LEFT, self.main_camera_widget)
+        self.right_camera_widget = CameraWidget(self, 2, CameraWidgetPosition.RIGHT, self.main_camera_widget)
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
