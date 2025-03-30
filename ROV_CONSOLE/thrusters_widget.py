@@ -1,16 +1,15 @@
 from typing import Optional
 
 from PySide6.QtCore import QRect, QPoint
-from PySide6.QtGui import QPainter, QPen, Qt, QPixmap, QColor, QBrush
-from PySide6.QtWidgets import QWidget, QLabel
+from PySide6.QtGui import QPainter, QPen, Qt, QPixmap, QColor, QBrush, QFontMetrics, QFont
+from PySide6.QtWidgets import QLabel
 
 
-class ThrustersWidget(QWidget):
+class ThrustersWidget(QLabel):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
-        self._view = QLabel(self)
-        self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self._hplacements = {
             'h1': {
                 'origin':    (750, 250),
@@ -33,22 +32,27 @@ class ThrustersWidget(QWidget):
                 'rectangle': (0, -100)
                 }
             }
-        self.reset_flag = False
+        self._reset_flag = False
 
     def resizeEvent(self, event):
-        self._view.resize(event.size())
+        self.resize(event.size())
+        self.setPixmap(self.pixmap().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                            Qt.TransformationMode.SmoothTransformation))
 
     def display(self, values: Optional[dict]):
         if values is None:
-            if not self.reset_flag:
-                self.reset_flag = True
-                self._view.setText('Please connect to a serial port.')
-            return
-        self.reset_flag = False
+            if self._reset_flag:
+                return
+            self._reset_flag = True
+            values = {'h1': 255, 'h2': 255, 'h3': 255, 'h4': 255, 'v1': 255, 'v2': 255}
+        else:
+            self._reset_flag = False
 
         canvas = QPixmap(1000, 1000)
         canvas.fill(QColor(0, 0, 0, 0))
         painter = QPainter(canvas)
+        if self._reset_flag:
+            painter.setOpacity(0.2)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(Qt.GlobalColor.white, 3))
         painter.fillRect(250, 250, 500, 500, Qt.GlobalColor.white)
@@ -81,7 +85,22 @@ class ThrustersWidget(QWidget):
         painter.drawEllipse(QPoint(500, 900), abs(values['v2'] / 255) * 90, abs(values['v2'] / 255) * 90)
         painter.setBrush(normal_brush)
 
+        if self._reset_flag:
+            painter.setOpacity(0.8)
+            text = 'Connect to the ROV'
+            font = QFont('Arial', 60)
+            painter.setFont(font)
+            text_rect = QFontMetrics(font).tightBoundingRect(text)
+            painter.setBrush(QBrush(Qt.GlobalColor.white, Qt.BrushStyle.SolidPattern))
+            back_rect = QRect((1000 - text_rect.width() - 100) // 2, (1000 - text_rect.height() - 100) // 2,
+                              text_rect.width() + 100, text_rect.height() + 100)
+            painter.setOpacity(0.8)
+            painter.drawRoundedRect(back_rect, 40, 40)
+            painter.setOpacity(1)
+            painter.setPen(QPen(Qt.GlobalColor.black))
+            painter.drawText(0, 0, 1000, 1000, Qt.AlignmentFlag.AlignCenter, text)
+
         painter.end()
         canvas = canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation)
-        self._view.setPixmap(canvas)
+        self.setPixmap(canvas)

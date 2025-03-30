@@ -12,7 +12,7 @@ DS4_ICONS = {f.stem: f for f in DS4_ICONS_PATHS}
 class ControllerDisplay(QLabel):
     def __init__(self, parent):
         super().__init__(parent)
-
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self._buttons = {
             'CIRCLE': {
                 'size':     QSize(250, 250),
@@ -154,7 +154,7 @@ class ControllerDisplay(QLabel):
             painter.drawPixmap(meta['position'][0], meta['position'][1], meta['pixes'][0])
         font = QFont('Arial', 100)
         painter.setFont(font)
-        text = 'Please connect a controller'
+        text = 'Connect a controller'
         text_rect = QFontMetrics(font).tightBoundingRect(text)
         painter.setBrush(QBrush(Qt.GlobalColor.white, Qt.BrushStyle.SolidPattern))
         back_rect = QRect((2300 - text_rect.width() - 100) // 2, (1300 - text_rect.height() - 100) // 2,
@@ -168,6 +168,8 @@ class ControllerDisplay(QLabel):
 
     def resizeEvent(self, event):
         self.resize(event.size())
+        self.setPixmap(self.pixmap().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                            Qt.TransformationMode.SmoothTransformation))
 
     def display(self, states=Optional[dict]):
         if states is None:
