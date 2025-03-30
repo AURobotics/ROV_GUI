@@ -34,6 +34,10 @@ class Config:
         except Exception:
             pass
 
+        for key in Config._DEFAULTS:
+            if key not in self._json:
+                self._json[key] = Config._DEFAULTS[key]
+
     @property
     def tasks(self) -> list[str]:
         return self._json['tasks']
