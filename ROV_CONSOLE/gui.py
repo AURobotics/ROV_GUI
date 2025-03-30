@@ -24,6 +24,7 @@ from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
 from ROV_CONSOLE.measurement_widget import MeasurementWindow
 from ROV_CONSOLE.orientation_widget import OrientationWidget
+from ROV_CONSOLE.tasks_widget import TasksWidget
 from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 
@@ -97,7 +98,7 @@ class CameraWidget(QWidget):
             'maximize':    {'icon': QIcon(str(ASSETS_PATH / 'maximize.svg')), 'function': self.launch_maximized},
             }
 
-        # Set-up a grid layout with 10 evenly spaced rows
+        # Set up a grid layout with 10 evenly spaced rows
         for i in range(0, 9):
             self._grid.setRowStretch(i, 1)
         col = 0  # Utilize the 10th (forces it to be the bottom-most row)
@@ -479,6 +480,7 @@ class MainWindow(QMainWindow):
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
+        self.tasksWidget = TasksWidget(self)
 
         self.comms_man = CommunicationManager(
             esp=self.esp, controller=self.controller,
@@ -505,6 +507,7 @@ class MainWindow(QMainWindow):
 
         grid.addWidget(self.controllerWidget, 2, 1, 1, 1)
         grid.addWidget(self.thrustersWidget, 2, 2, 1, 1)
+        grid.addWidget(self.tasksWidget, 1, 2, 1, 1)
 
         central_widget.setLayout(grid)
         self.setMinimumSize(self.size())
