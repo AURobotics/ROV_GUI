@@ -149,7 +149,10 @@ class CameraWidget(QWidget):
 
     def _swap(self):
         main_src = self._main_widget_ref._stream.source
-        self._main_widget_ref._stream.source = self._stream.source
+        my_src = self._stream.source
+        if main_src == my_src:
+            return
+        self._main_widget_ref._stream.source = my_src
         self._stream.source = main_src
 
     def hflip(self):

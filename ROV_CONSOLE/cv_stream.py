@@ -188,13 +188,16 @@ class VideoStream:
             me = self._upstream
         if me._cap_meta['descriptor'] is None:
             return None
-        return me._cap_meta
+        return me._cap_meta.copy()
 
     @source.setter
     def source(self, descriptor: Optional[CapMetadata | int | str]):
         if isinstance(descriptor, dict):
             descriptor = descriptor['descriptor']
-        if descriptor == self._cap_meta['descriptor']:
+        if self._upstream is not None:
+            if descriptor == self._upstream._cap_meta['descriptor']:
+                return
+        elif descriptor == self._cap_meta['descriptor']:
             return
         if self._connection_status == ConnectionStatus.IN_PROGRESS: return
         self._connection_status = ConnectionStatus.IN_PROGRESS
