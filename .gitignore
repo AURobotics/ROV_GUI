@@ -8,3 +8,6 @@ venv/
 # IDE-related ignores
 .idea/
 .vscode/
+
+# Environment/ Runtime config ignores
+config.json

@@ -1,85 +1,194 @@
-import random
-from functools import partial
+from __future__ import annotations
 
-import requests
+import enum
+from functools import partial
+from typing import Optional
+
 from PySide6.QtCore import QTimer, Qt, QSize
-from PySide6.QtGui import QImage, QPixmap, QPainter, QColor, QPen, QBrush, QIcon
+from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication
 from PySide6.QtWidgets import (
     QMainWindow,
     QLabel,
     QWidget,
     QGridLayout,
-    QVBoxLayout,
-    QScrollArea,
-    QCheckBox,
     QPushButton,
-    QMenu,
     QInputDialog,
-    QLineEdit,
-    )
+    QLineEdit, QMenuBar, QMenu, QToolButton, QSpacerItem, QSizePolicy, )
+from plyer import notification
 
-from .controller_widget import ControllerDisplay
-from .cv_stream import VideoStream
-from .esp32 import ESP32
-from .gamepad import Controller
-from .measurement_widget import MeasurementWindow
-
-RASPBERY_PI_IP = "192.168.1.2"
-
-from os import path
-
-_ = path.join(path.dirname(path.abspath(__file__)), "assets")
-camera_toolbar_icons = {
-    "hflip":       QIcon(path.join(_, "flip-horizontal.svg")),
-    "vflip":       QIcon(path.join(_, "flip-vertical.svg")),
-    "measurement": QIcon(path.join(_, "ruler.svg")),
-    "pano":        QIcon(path.join(_, "pano.svg")),
-    }
+from ROV_CONSOLE.comms import CommunicationManager
+from ROV_CONSOLE.conf import Config
+from ROV_CONSOLE.constants import APP_ICON, ASSETS_PATH
+from ROV_CONSOLE.controller_widget import ControllerDisplay
+from ROV_CONSOLE.cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
+from ROV_CONSOLE.esp32 import ESP32
+from ROV_CONSOLE.gamepad import Controller
+from ROV_CONSOLE.measurement_widget import MeasurementWindow
+from ROV_CONSOLE.orientation_widget import OrientationWidget
+from ROV_CONSOLE.tasks_widget import TasksWidget
+from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 
-class CameraWidget(QLabel):
-    def __init__(self, parent, cam):
+class CameraWindow(QWidget):
+    def __init__(self, parent):
         super().__init__(parent)
-        self._stream = VideoStream(cam)
-        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
-        self.bottom_buttons = {}
-        for b in camera_toolbar_icons:
-            pb = QPushButton(self)
-            pb.setIcon(camera_toolbar_icons[b])
-            pb.setIconSize(QSize(24, 24))
-            pb.setVisible(False)
-            self.bottom_buttons[b] = pb
-        self.h_mirror = False
-        self.v_mirror = False
-        self.bottom_buttons["hflip"].clicked.connect(self.hflip)
-        self.bottom_buttons["vflip"].clicked.connect(self.vflip)
-        self.bottom_buttons["measurement"].clicked.connect(
-            self._launch_length_measurement
-            )
+        self.setWindowFlag(Qt.WindowType.Window)
+        # self.setWindowModality(Qt.WindowModality.WindowModal)
+        width, height = QGuiApplication.primaryScreen().size().toTuple()
+        width //= 2
+        height //= 2
+        self._view = QLabel(self)
+        self.resize(width, height)
+        self._view.setScaledContents(True)
+        self.setWindowTitle("Video Stream")
+        self.show()
 
-        self.measurement_window: QWidget | None = None
+    def resizeEvent(self, event):
+        self._view.resize(event.size())
+
+    def update_(self, pix):
+        self._view.setPixmap(pix)
+
+
+class CameraWidgetPosition(enum.Enum):
+    MAIN = enum.auto()
+    RIGHT = enum.auto()
+    LEFT = enum.auto()
+
+
+class CameraWidget(QWidget):
+    _widget_position = CameraWidgetPosition
+    _stream: VideoStream
+    _view: QLabel
+    _empty_frame: QPixmap
+    _mirror_h: bool
+    _mirror_v: bool
+    _grid: QGridLayout
+    _camera_dropdown: QToolButton
+    _camera_menulist = QMenu
+    _cam_menu_displayed_cams: list[QAction]
+    _cam_menu_slots: dict[int | str:partial]
+    _cam_menu_stored_cameras: list[CapMetadata]
+    _cam_menu_no_cam_indicator = QAction
+    _cam_menu_sep: QAction
+    _cam_menu_add_custom: QAction
+    _maximized_popup: Optional[CameraWindow]
+
+    def __init__(self, parent, cam, widget_pos: CameraWidgetPosition, main_widget_ref: Optional[CameraWidget] = None):
+        super().__init__(parent)
+        self._widget_position = widget_pos
+        self._main_widget_ref = main_widget_ref
+        self._stream = VideoStream(cam)
+        self._view = QLabel(self)
+        self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
+        ef = VideoStream.EMPTY_FRAME
+        self._empty_frame = QPixmap(
+            QImage(ef.data, ef.shape[1], ef.shape[0], ef.strides[0], QImage.Format.Format_BGR888))
+        self._mirror_h = False
+        self._mirror_v = False
+
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self._grid = QGridLayout()
+        self.setLayout(self._grid)
+
+        toolbar_buttons = {
+            'hflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-horizontal.svg')), 'function': self.hflip},
+            'vflip':       {'icon': QIcon(str(ASSETS_PATH / 'flip-vertical.svg')), 'function': self.vflip},
+            'measurement': {'icon': QIcon(str(ASSETS_PATH / 'ruler.svg')), 'function': self._launch_length_measurement},
+            'pano':        {'icon': QIcon(str(ASSETS_PATH / 'pano.svg')), 'function': None},
+            'maximize':    {'icon': QIcon(str(ASSETS_PATH / 'maximize.svg')), 'function': self.launch_maximized},
+            }
+
+        # Set up a grid layout with 10 evenly spaced rows
+        for i in range(0, 9):
+            self._grid.setRowStretch(i, 1)
+        col = 0  # Utilize the 10th (forces it to be the bottom-most row)
+        for b in toolbar_buttons:
+            pb = QPushButton(toolbar_buttons[b]['icon'], '')
+            pb.setIconSize(QSize(24, 24))
+            pb.clicked.connect(toolbar_buttons[b]['function'])
+            pb.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            pb.setVisible(False)
+            self._grid.addWidget(pb, 9, col, 1, 1)
+            col += 1
+            self._grid.addItem(
+                QSpacerItem(24, 24, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding),
+                9, col, 1, 1)
+            col += 1
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button = QPushButton(self)
+            self._swap_button.setIcon(QIcon(str(ASSETS_PATH / 'swap.svg')))
+            self._swap_button.setVisible(False)
+            self._swap_button.setIconSize(QSize(24, 24))
+            self._swap_button.clicked.connect(self._swap)
+            if self._widget_position == CameraWidgetPosition.RIGHT:
+                self._grid.addWidget(self._swap_button, 4, 0, 1, 1)
+            if self._widget_position == CameraWidgetPosition.LEFT:
+                self._grid.addWidget(self._swap_button, 4, 11, 1, 1)
+
+        self._camera_dropdown = QToolButton(self)
+        self._camera_dropdown.setVisible(False)
+
+        self._camera_dropdown.setText('No Cameras Found')
+        self._camera_menulist = QMenu(self)  # Could be rewritten as a QComboBox
+        self._camera_dropdown.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._camera_dropdown.setMenu(self._camera_menulist)
+        self._camera_dropdown.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
+
+        self._cam_menu_displayed_cams = []
+        self._cam_menu_slots = {}
+        self._cam_menu_stored_cameras = []
+
+        self._cam_menu_no_cam_indicator = QAction('No Cameras Found')
+        self._cam_menu_no_cam_indicator.setEnabled(False)
+        self._camera_menulist.addAction(self._cam_menu_no_cam_indicator)
+        self._cam_menu_sep = self._camera_menulist.addSeparator()
+        self._cam_menu_add_custom = self._camera_menulist.addAction('Custom URL')
+        self._cam_menu_add_custom.triggered.connect(self.custom_camera_popup)
+        self._grid.addWidget(self._camera_dropdown, 9, col, 1, 1)
+        self.setLayout(self._grid)
+        self._maximized_popup = None
+
+    def _swap(self):
+        main_src = self._main_widget_ref._stream.source
+        my_src = self._stream.source
+        if main_src == my_src:
+            return
+        self._main_widget_ref._stream.source = my_src
+        self._stream.source = main_src
 
     def hflip(self):
-        self.h_mirror = not self.h_mirror
+        self._mirror_h = not self._mirror_h
 
     def vflip(self):
-        self.v_mirror = not self.v_mirror
+        self._mirror_v = not self._mirror_v
+
+    def launch_maximized(self):
+        if self._maximized_popup is None:
+            self._maximized_popup = CameraWindow(self)
 
     def enterEvent(self, event):
-        w = self.width() // 4
-        h = self.height() - self.height() // 10
-        for b in self.bottom_buttons.values():
-            b.move(w, h)
-            b.setVisible(True)
-            b.raise_()
-            w += 48
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button.setVisible(True)
+        for i in range(self._grid.count()):
+            item = self._grid.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(True)
 
     def leaveEvent(self, event):
-        for b in self.bottom_buttons.values():
-            b.setVisible(False)
+        if self._camera_menulist.isVisible():
+            return
+        if self._widget_position != CameraWidgetPosition.MAIN:
+            self._swap_button.setVisible(False)
+        for i in range(self._grid.count()):
+            item = self._grid.itemAt(i)
+            if item and item.widget():
+                item.widget().setVisible(False)
 
-    def _pixmap_from_frame(self):
+    def _pixmap_from_stream(self):
         frame = self._stream.frame
+        if frame is None:
+            return self._empty_frame
         q_image = (
             QImage(
                 frame.data,
@@ -88,255 +197,305 @@ class CameraWidget(QLabel):
                 frame.strides[0],
                 QImage.Format.Format_BGR888,
                 )
-            .smoothScaled(self.width(), self.height())
-            .mirrored(horizontally=self.h_mirror, vertically=self.v_mirror)
+            .mirrored(horizontally=self._mirror_h, vertically=self._mirror_v)
         )
         return QPixmap.fromImage(q_image)
 
     def _launch_length_measurement(self):
-        self.measurement_window = MeasurementWindow(self, self._pixmap_from_frame())
+        self.measurement_window = MeasurementWindow(self, self._pixmap_from_stream())
+
+    def resizeEvent(self, event):
+        self._view.resize(event.size())
+
+    def change_cam(self, cam):
+        current_cam = self._stream.source
+        if current_cam is not None:
+            if current_cam['descriptor'] == cam:
+                self._stream.source = None
+                return
+        self._stream.source = cam
 
     def update(self):
-        self.setPixmap(self._pixmap_from_frame())
+        # Set frame
+        frame_pixmap = self._pixmap_from_stream()
+        frame_pixmap = frame_pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        self._view.setPixmap(frame_pixmap)
+
+        # Check if a maximized view was launched
+        if self._maximized_popup is not None:
+            # Check if it was closed
+            if not self._maximized_popup.isVisible():
+                self._maximized_popup = None
+            else:
+                # Send the current frame
+                self._maximized_popup.update_(frame_pixmap)
+
+        # Handling connection status and switching cameras
+        if self._stream.connection_status == ConnectionStatus.IN_PROGRESS:
+            self._camera_dropdown.setText('Connecting..')
+            return
+        elif (self._stream.connection_status == ConnectionStatus.DISCONNECTED and self._stream.disconnect_reason is
+              not DisconnectReason.DESIRED_DISCONNECT):
+            notification.notify(
+                title='Camera Disconnected',
+                message=self._stream.disconnect_message,
+                timeout=2,
+                app_name='AU Robotics ROV GUI'
+                )
+        _devices = self._stream.available_cameras
+        cameras = [CapMetadata(descriptor=cam, name=_devices[cam], type=CapType.DEVICE) for cam in _devices]
+        old_custom = None
+        for cam in self._cam_menu_stored_cameras:
+            if cam not in cameras:
+                old_custom = cam
+                break
+        chosen = self._stream.source
+        if chosen is not None:
+            chosen = chosen.copy()
+        new_custom = chosen if chosen not in cameras and chosen != old_custom else None
+        new_cameras = [cam for cam in cameras if cam not in self._cam_menu_stored_cameras]
+        old_cameras = [cam for cam in self._cam_menu_stored_cameras if cam not in cameras and cam != old_custom]
+
+        if len(cameras) == 0:
+            if len(old_cameras) != 0:
+                self._camera_menulist.insertAction(self._cam_menu_sep, self._cam_menu_no_cam_indicator)
+        else:
+            self._camera_menulist.removeAction(self._cam_menu_no_cam_indicator)
+        for cam in new_cameras:
+            option = QAction(f'{cam['name']}')
+
+            self._camera_menulist.insertAction(self._cam_menu_sep, option)
+            f = partial(self.change_cam, cam['descriptor'])
+            self._cam_menu_slots.update({cam['descriptor']: f})
+            option.triggered.connect(f)
+            self._cam_menu_displayed_cams.append(option)
+            self._cam_menu_stored_cameras.append(cam)
+
+        if chosen != old_custom and old_custom is not None:
+            old_cameras.append(old_custom)
+
+        for cam in old_cameras:
+            for option in self._cam_menu_displayed_cams:
+                if option.text() == f'{cam['name']}':
+                    f = self._cam_menu_slots.pop(cam['descriptor'])
+                    option.triggered.disconnect(f)
+                    self._camera_menulist.removeAction(option)
+                    self._cam_menu_displayed_cams.remove(option)
+                    self._cam_menu_stored_cameras.remove(cam)
+
+        if new_custom is not None:
+            self._cam_menu_stored_cameras.append(new_custom)
+            option = QAction(f'{new_custom['name']}')
+            self._camera_menulist.insertAction(self._cam_menu_add_custom, option)
+            f = partial(self.change_cam, new_custom['descriptor'])
+            self._cam_menu_slots.update({new_custom['descriptor']: f})
+            option.triggered.connect(f)
+            self._cam_menu_displayed_cams.append(option)
+
+        for option in self._cam_menu_displayed_cams:
+            if chosen is not None:
+                if chosen['name'] == option.text():
+                    option.setCheckable(True)
+                    option.setChecked(True)
+                    self._camera_dropdown.setText(f'{chosen['name']}')
+                else:
+                    option.setChecked(False)
+                    option.setCheckable(False)
+            else:
+                self._camera_dropdown.setText('No Camera Selected')
+                option.setChecked(False)
+                option.setCheckable(False)
+
+    def custom_camera_popup(self):
+        text, ok = QInputDialog.getText(
+            self,
+            'Choose Camera by URL',
+            'URL:',
+            QLineEdit.EchoMode.Normal,
+            'http://',
+            )
+        if ok:
+            self.change_cam(text)
 
 
-class OrientationsWidget(QWidget):
-    def __init__(self, parent):
+class MenuBar(QMenuBar):
+    _esp_menu: QMenu
+    _controller_menu: QMenu
+    _esp_actions: list[QAction]
+
+    def __init__(self, parent, esp: ESP32, controller: Controller):
         super().__init__(parent)
-
-        self.setMinimumSize(parent.width() // 3, parent.height() // 2)
-
-        layout = QVBoxLayout()
-
-        self.setLayout(layout)
-
-        self.depthLabel = QLabel(self)
-        self.yawLabel = QLabel(self)
-        self.pitchLabel = QLabel(self)
-        self.rollLabel = QLabel(self)
-
-        layout.addWidget(self.depthLabel)
-        layout.addWidget(self.yawLabel)
-        layout.addWidget(self.pitchLabel)
-        layout.addWidget(self.rollLabel)
-
-        self.update()
+        self._esp = esp
+        self._esp_menu = self.addMenu('ESP')
+        self._esp_menu_sep = self._esp_menu.addSeparator()
+        self._esp_menu_add_custom = self._esp_menu.addAction('Custom Port')
+        self._esp_menu_add_custom.triggered.connect(self.manual_port_selection)
+        self._esp_menu_reset_esp = QAction('Reset ESP')
+        self._esp_menu_reset_esp.triggered.connect(self._esp.reset)
+        self._esp_menu_no_esp = QAction('No Serial Ports')
+        self._esp_menu_no_esp.setEnabled(False)
+        self._displayed_ports: list[QAction] = []
+        self._port_slots: dict[str:partial] = {}
+        self._stored_ports = []
+        self._stored_custom_port = None
+        self._controller = controller
+        self._controller_menu = self.addMenu('Controller')
+        self._displayed_controllers: list[QAction] = []
+        self._stored_controllers: list[str] = []
+        self._gp_menu_none_connected = QAction('No ControllerS Connected')
+        self._gp_menu_none_connected.setEnabled(False)
+        self._gp_slots: dict[str:partial] = {}
 
     def update(self):
-        depthReading = random.randint(0, 10)
-        yawReading = random.randint(0, 10)
-        pitchReading = random.randint(0, 10)
-        rollReading = random.randint(0, 10)
+        self._update_controller_menu()
+        self._update_esp_menu()
 
-        self.depthLabel.setText("Depth: " + str(depthReading))
-        self.yawLabel.setText("Yaw: " + str(yawReading))
-        self.pitchLabel.setText("Pitch: " + str(pitchReading))
-        self.rollLabel.setText("Roll: " + str(rollReading))
+    def _update_controller_menu(self):
+        gamepads = self._controller.gamepads
+        chosen = self._controller.gamepad
+        new_gamepads = [gp for gp in gamepads if gp not in self._stored_controllers]
+        removed_gamepads = [gp for gp in self._stored_controllers if gp not in gamepads]
+        if len(gamepads) == 0:
+            if len(removed_gamepads) != 0:
+                self._controller_menu.addAction(self._gp_menu_none_connected)
+        else:
+            self._controller_menu.removeAction(self._gp_menu_none_connected)
+        for gp in new_gamepads:
+            option = QAction(f'{gp}')
+            self._controller_menu.addAction(option)
+            f = partial(self.toggle_controller, gp)
+            self._gp_slots.update({gp: f})
+            option.triggered.connect(f)
+            self._displayed_controllers.append(option)
+        for gp in removed_gamepads:
+            for option in self._displayed_controllers:
+                if option.text() == gp:
+                    f = self._gp_slots.pop(gp)
+                    option.triggered.disconnect(f)
+                    self._controller_menu.removeAction(option)
+                    self._displayed_controllers.remove(option)
+        self._stored_controllers = gamepads
+        for option in self._displayed_controllers:
+            if chosen == option.text():
+                option.setCheckable(True)
+                option.setChecked(True)
+            else:
+                option.setChecked(False)
+                option.setCheckable(False)
 
+    def _update_esp_menu(self):
+        # Tracking changes
+        ports = self._esp.available_ports
+        chosen = self._esp.port
+        new_custom_port = chosen if chosen not in ports and chosen != self._stored_custom_port else None
+        new_ports = [p for p in ports if p not in self._stored_ports]
+        removed_ports = [p for p in self._stored_ports if p not in ports]
+        if len(ports) == 0:
+            if len(removed_ports) != 0:
+                self._esp_menu.insertAction(self._esp_menu_sep, self._esp_menu_no_esp)
+        else:
+            self._esp_menu.removeAction(self._esp_menu_no_esp)
+        for port in new_ports:
+            option = QAction(f'{port}')
+            self._esp_menu.insertAction(self._esp_menu_sep, option)
+            f = partial(self.toggle_port, port)
+            self._port_slots.update({port: f})
+            option.triggered.connect(f)
+            self._displayed_ports.append(option)
+        if chosen is None and self._stored_custom_port is not None and new_custom_port is None:
+            removed_ports.append(self._stored_custom_port)
+        for port in removed_ports:
+            for option in self._displayed_ports:
+                if option.text() == port:
+                    f = self._port_slots.pop(port)
+                    option.triggered.disconnect(f)
+                    self._esp_menu.removeAction(option)
+                    self._displayed_ports.remove(option)
+        self._stored_ports = ports
+        if new_custom_port is not None:
+            self._stored_custom_port = new_custom_port
+            option = self._esp_menu.addAction(f'{new_custom_port}')
+            f = partial(self.toggle_port, new_custom_port)
+            self._port_slots.update({new_custom_port: f})
+            option.triggered.connect(f)
+            self._displayed_ports.append(option)
 
-class ThrustersWidget(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.parent = parent
+        for option in self._displayed_ports:
+            if chosen == option.text():
+                option.setCheckable(True)
+                option.setChecked(True)
+            else:
+                option.setChecked(False)
+                option.setCheckable(False)
+        if chosen is not None:
+            if new_custom_port is not None or len(new_ports) != 0:
+                self._esp_menu.addAction(self._esp_menu_reset_esp)
+        else:
+            self._esp_menu.removeAction(self._esp_menu_reset_esp)
 
-        self.setMinimumSize(parent.width() // 3, parent.height() // 4)
+    def toggle_port(self, port):
+        if self._esp.port == port:
+            self._esp.disconnect()
+        else:
+            self._esp.connect(port)
 
-        self.frontLabel = QLabel(self)
-        self.backLabel = QLabel(self)
-        self.leftfrontLabel = QLabel(self)
-        self.rightfrontLabel = QLabel(self)
-        self.leftbackLabel = QLabel(self)
-        self.rightbackLabel = QLabel(self)
-
-        # Default colors
-        self.square_color = QColor(0, 0, 0)  # Black for center square
-
-        self.circle_colors = [
-            QColor(0, 255, 0),  # Top
-            QColor(0, 255, 0),
-            # ,  # Bottom
-            # # QColor(0, 255, 0),  # Left
-            # QColor(0, 255, 0)   # Right
-            ]
-
-        self.rotated_square_colors = [
-            QColor(0, 255, 0),  # Front-left
-            QColor(0, 255, 0),  # Front-right
-            QColor(0, 255, 0),  # Back-left
-            QColor(0, 255, 0),  # Back-right
-            ]
-
-    def set_colors(self):
-        """Allows changing colors dynamically"""
-
-        frontRightSpeed = 0
-        backRightSpeed = 255
-        frontLeftSpeed = 100
-        backLeftSpeed = 200
-        upFrontSpeed = 50
-        upBackSpeed = 150
-
-        self.frontLabel.setText(str(upFrontSpeed))
-        self.backLabel.setText(str(upBackSpeed))
-        self.leftfrontLabel.setText(str(frontLeftSpeed))
-        self.rightfrontLabel.setText(str(frontRightSpeed))
-        self.leftbackLabel.setText(str(backLeftSpeed))
-        self.rightbackLabel.setText(str(backRightSpeed))
-
-        self.square_color = QColor(0, 0, 0)
-        self.circle_colors = [
-            QColor(upFrontSpeed, 255 - upFrontSpeed, 0),  # Top
-            QColor(upBackSpeed, 255 - upBackSpeed, 0),
-            # ,  # Bottom
-            # QColor(0, 255, 0),  # Left
-            # QColor(0, 255, 0)   # Right
-            ]
-        self.rotated_square_colors = [
-            QColor(frontLeftSpeed, 255 - frontLeftSpeed, 0),  # Front-left
-            QColor(frontRightSpeed, 255 - frontRightSpeed, 0),  # Front-right
-            QColor(backLeftSpeed, 255 - backLeftSpeed, 0),  # Back-left
-            QColor(backRightSpeed, 255 - backRightSpeed, 0),  # Back-right
-            ]
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Get parent size constraints
-        max_width = self.parent.width() // 3
-        max_height = self.parent.height() // 4
-        size = min(max_width, max_height)
-
-        # Central square (70% of size)
-        square_size = int(
-            size * 0.7
-            )  ###changing the ratio changes the thrusters size###
-        square_x = (self.width() - square_size) // 2
-        square_y = (self.height() - square_size) // 2
-
-        # Draw the black center square
-        painter.setPen(QPen(self.square_color, 3))
-        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-        painter.drawRect(square_x, square_y, square_size, square_size)
-
-        # Circles' and Rotated Squares' Positions
-        offsets = [
-            (square_x + square_size // 2, square_y - square_size // 3),  # Top
-            (square_x + square_size // 2, square_y + square_size + square_size // 3),
-            # ,  # Bottom
-            # (square_x - square_size // 3, square_y + square_size // 2),  # Left
-            # (square_x + square_size + square_size // 3, square_y + square_size // 2)  # Right
-            ]
-
-        rotated_offsets = [
-            (square_x - square_size // 3, square_y - square_size // 3),  # Top-left
-            (
-                square_x + square_size + square_size // 3,
-                square_y - square_size // 3,
-                ),  # Top-right
-            (
-                square_x - square_size // 3,
-                square_y + square_size + square_size // 3,
-                ),  # Bottom-left
-            (
-                square_x + square_size + square_size // 3,
-                square_y + square_size + square_size // 3,
-                ),  # Bottom-right
-            ]
-
-        self.frontLabel.setGeometry(
-            offsets[0][0] - 10, offsets[0][1] - 15, 100, 30
-            )  # (x, y, width, height)
-        self.backLabel.setGeometry(offsets[1][0] - 10, offsets[1][1] - 15, 100, 30)
-        self.leftfrontLabel.setGeometry(
-            rotated_offsets[0][0] - 10, rotated_offsets[0][1] - 15, 100, 30
+    def manual_port_selection(self):
+        text, ok = QInputDialog.getText(
+            self,
+            'Custom Port',
+            'Port Name (RFC2217 NOT FULLY SUPPORTED):',
+            QLineEdit.EchoMode.Normal,
+            'COM',
             )
-        self.rightfrontLabel.setGeometry(
-            rotated_offsets[1][0] - 10, rotated_offsets[1][1] - 15, 100, 30
-            )
-        self.leftbackLabel.setGeometry(
-            rotated_offsets[2][0] - 10, rotated_offsets[2][1] - 15, 100, 30
-            )
-        self.rightbackLabel.setGeometry(
-            rotated_offsets[3][0] - 10, rotated_offsets[3][1] - 15, 100, 30
-            )
+        if ok:
+            self.toggle_port(text)
 
-        circle_radius = int(square_size * 0.2)
-
-        # Draw Circles with individual colors
-        for i, (x, y) in enumerate(offsets):
-            painter.setBrush(QBrush(self.circle_colors[i]))
-            painter.drawEllipse(
-                x - circle_radius,
-                y - circle_radius,
-                circle_radius * 2,
-                circle_radius * 2,
-                )
-
-        # Draw Rotated Squares with individual colors
-        for i, (x, y) in enumerate(rotated_offsets):
-            painter.setBrush(QBrush(self.rotated_square_colors[i]))
-            painter.save()
-            painter.translate(x, y)
-            painter.rotate(45)  # Rotate by 45 degrees
-            painter.drawRect(
-                -circle_radius, -circle_radius, circle_radius * 2, circle_radius * 2
-                )
-            painter.restore()
-
-    def updateThrusters(self):
-        self.set_colors()
-        self.update()
+    def toggle_controller(self, indexed_name):
+        if self._controller.connected:
+            if indexed_name == self._controller.gamepad:
+                self._controller.gamepad = None
+                return
+        i = indexed_name[: indexed_name.find(':')]
+        self._controller.gamepad = int(i)
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.showMaximized()
-        self.setWindowTitle("AU Robotics ROV GUI")
+        self.setWindowTitle('AU Robotics ROV GUI')
+        self.setWindowIcon(QIcon(str(APP_ICON)))
 
-        self.state = self.windowState()
+        conf = Config()
+
         self.controller = Controller()
         self.esp = ESP32()
-        self.initUI()
+        self.esp.port = conf.com_port
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.updateFrame)
-        self.timer.start(15)
+        self.menu_bar = MenuBar(self, self.esp, self.controller)
+        self.setMenuBar(self.menu_bar)
 
-    def initUI(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        def is_url_reachable(url):
-            try:
-                response = requests.get(url, timeout=5)
-                return response.status_code == 200
-            except requests.RequestException:
-                return False
-
-        self.leftCameraWidget = CameraWidget(self, 0)
-        self.middleCameraWidget = CameraWidget(self, 1)
-        self.rightCameraWidget = CameraWidget(self, 2)
-        self.orientationsWidget = OrientationsWidget(self)
-        self.controllerWidget = ControllerDisplay(self.controller)
+        self.main_camera_widget = CameraWidget(self, conf.main_camera, CameraWidgetPosition.MAIN)
+        self.left_camera_widget = CameraWidget(self, conf.left_camera, CameraWidgetPosition.LEFT,
+                                               self.main_camera_widget)
+        self.right_camera_widget = CameraWidget(self, conf.right_camera, CameraWidgetPosition.RIGHT,
+                                                self.main_camera_widget)
+        self.orientationsWidget = OrientationWidget(self)
+        self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
-        self.tasksWidget = QScrollArea(self)
+        self.tasksWidget = TasksWidget(self, conf.tasks)
 
-        self.menu_bar = self.menuBar()
-        self.initTasks()
+        self.comms_man = CommunicationManager(
+            esp=self.esp, controller=self.controller,
+            controller_widget=self.controllerWidget,
+            thrusters_widget=self.thrustersWidget,
+            orientation_widget=self.orientationsWidget
+            )
 
         grid = QGridLayout()
-
-        # grid.setColumnMinimumWidth(0, self.width() // 3)
-        # grid.setColumnMinimumWidth(1, self.width() // 3)
-        # grid.setColumnMinimumWidth(2, self.width() // 3)
-
-        # grid.setRowMinimumHeight(0, self.height() // 4)
-        # grid.setRowMinimumHeight(1, self.height() // 4)
-        # grid.setRowMinimumHeight(2, self.height() // 4)
-        # grid.setRowMinimumHeight(3, self.height() // 4)
 
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
@@ -345,111 +504,26 @@ class MainWindow(QMainWindow):
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 1)
-        grid.setRowStretch(3, 2)
 
-        grid.addWidget(self.leftCameraWidget, 0, 0, 2, 1)
-        grid.addWidget(self.middleCameraWidget, 0, 1, 2, 1)
-        grid.addWidget(self.rightCameraWidget, 0, 2, 2, 1)
+        grid.addWidget(self.main_camera_widget, 0, 1, 2, 1)
+        grid.addWidget(self.left_camera_widget, 0, 0, 1, 1)
+        grid.addWidget(self.right_camera_widget, 0, 2, 1, 1)
 
-        grid.addWidget(self.orientationsWidget, 2, 0, 2, 1)
+        grid.addWidget(self.orientationsWidget, 1, 0, 2, 1)
 
-        grid.addWidget(self.tasksWidget, 2, 1, 1, 1)
-        grid.addWidget(self.controllerWidget, 3, 1, 1, 1)
-        grid.addWidget(self.thrustersWidget, 3, 2, 1, 1)
+        grid.addWidget(self.controllerWidget, 2, 1, 1, 1)
+        grid.addWidget(self.thrustersWidget, 2, 2, 1, 1)
+        grid.addWidget(self.tasksWidget, 1, 2, 1, 1)
 
         central_widget.setLayout(grid)
+        self.setMinimumSize(self.size())
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.main_loop)
+        self.timer.start(15)
 
-    def createMenuBar(self):
-        self.menu_bar.clear()
-        port_menu = QMenu("Serial Port", self)
-        port_is_from_choices = False
-        self.menu_bar.addMenu(port_menu)
-        for i in self.esp.available_ports:
-            port_sel = port_menu.addAction(f"{i}")
-            port_sel.setCheckable(True)
-            if i == self.esp.port:
-                port_sel.setChecked(True)
-                port_is_from_choices = True
-            port_sel.triggered.connect(partial(self.toggle_port, i))
-        if self.esp.port is not None and not port_is_from_choices:
-            port_sel = port_menu.addAction(f"{self.esp.port}")
-            port_sel.setCheckable(True)
-            port_sel.setChecked(True)
-            port_sel.triggered.connect(partial(self.toggle_port, self.esp.port))
-        port_menu.addSeparator()
-        manual_port_selection = port_menu.addAction("Custom Port Selection")
-        manual_port_selection.triggered.connect(partial(self.manual_port_selection))
-        if self.esp.connected:
-            reset_esp = port_menu.addAction("Reset ESP")
-            reset_esp.triggered.connect(self.esp.reset)
-
-        if not self.controller.gamepads:
-            return
-        controller_menu = QMenu("Controller", self)
-        self.menu_bar.addMenu(controller_menu)
-        for gp in self.controller.gamepads:
-            gp_sel = controller_menu.addAction(f"{gp}")
-            gp_sel.triggered.connect(partial(self.toggle_controller, gp))
-            gp_sel.setCheckable(True)
-            if self.controller.gamepad == gp:
-                gp_sel.setChecked(True)
-
-    def manual_port_selection(self):
-        text, ok = QInputDialog.getText(
-            self,
-            "Custom Port",
-            "Port Name (RFC2217 NOT FULLY SUPPORTED):",
-            QLineEdit.EchoMode.Normal,
-            "COM",
-            )
-        if ok:
-            self.toggle_port(text)
-
-    def toggle_port(self, port):
-        if self.esp.port == port:
-            self.esp.disconnect()
-            self.controller.payload_callback = None
-        else:
-            self.esp.connect(port)
-            self.controller.payload_callback = self.esp.send
-
-    def toggle_controller(self, indexed_name):
-        if self.controller.connected:
-            if indexed_name == self.controller.gamepad:
-                self.controller.gamepad = None
-                return
-        i = indexed_name[: indexed_name.find(":")]
-        self.controller.gamepad = int(i)
-
-    def updateFrame(self):
-        if self.state != self.windowState():
-            self.state = self.windowState()
-        self.orientationsWidget.update()
-        self.thrustersWidget.updateThrusters()
-        self.createMenuBar()
-        self.leftCameraWidget.update()
-        self.middleCameraWidget.update()
-        self.rightCameraWidget.update()
-        if self.esp.connected:
-            while self.esp.incoming:
-                print(self.esp.next_line)
-
-    def initTasks(self):
-        tasksContainer = QWidget()
-        tasksScrollLayout = QVBoxLayout(tasksContainer)
-
-        tasksScrollLayout.addWidget(QCheckBox("Task 1"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 2"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 3"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 4"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 5"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 6"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 7"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 8"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 9"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 10"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 11"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 12"))
-        tasksScrollLayout.addWidget(QCheckBox("Task 13"))
-
-        self.tasksWidget.setWidget(tasksContainer)
+    def main_loop(self):
+        self.main_camera_widget.update()
+        self.left_camera_widget.update()
+        self.right_camera_widget.update()
+        self.menu_bar.update()
+        self.comms_man.update_widgets()
