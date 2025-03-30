@@ -1,144 +1,141 @@
 from typing import Optional
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QPixmap, QPainter, QColor
-from PySide6.QtWidgets import QWidget, QLabel
+from PySide6.QtCore import QSize, Qt, QRect
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QFontMetrics, QBrush
+from PySide6.QtWidgets import QLabel
 
 from .constants import DS4_ICONS_PATHS
 
 DS4_ICONS = {f.stem: f for f in DS4_ICONS_PATHS}
 
 
-class ControllerDisplay(QWidget):
+class ControllerDisplay(QLabel):
     def __init__(self, parent):
         super().__init__(parent)
-        self._view = QLabel(self)
-        self._view.setText('Please connect a controller')
-        self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
 
-        self.buttons = {
+        self._buttons = {
             'CIRCLE': {
-                'size':     QSize(50, 50),
+                'size':     QSize(250, 250),
                 'icons':    (DS4_ICONS['CIRCLE'], DS4_ICONS['CIRCLE-1']),
-                'position': (410, 145)
+                'position': (2050, 725)
                 },
             'CROSS':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['CROSS'], DS4_ICONS['CROSS-1']),
-                          'position': (370, 185)
+                          'position': (1850, 925)
                           },
             'SQUARE':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['SQUARE'], DS4_ICONS['SQUARE-1']),
-                          'position': (330, 145)
+                          'position': (1650, 725)
                           },
             'TRIANGLE':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['TRIANGLE'], DS4_ICONS['TRIANGLE-1']),
-                          'position': (370, 105)
+                          'position': (1850, 525)
                           },
             'D-UP':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-UP'], DS4_ICONS['D-UP-1']),
-                          'position': (40, 105)
+                          'position': (200, 525)
                           },
             'D-DOWN':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-DOWN'], DS4_ICONS['D-DOWN-1']),
-                          'position': (40, 185)
+                          'position': (200, 925)
                           },
             'D-LEFT':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-LEFT'], DS4_ICONS['D-LEFT-1']),
-                          'position': (0, 145)
+                          'position': (0, 700)
                           },
             'D-RIGHT':
                       {
-                          'size':     QSize(50, 50),
+                          'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-RIGHT'], DS4_ICONS['D-RIGHT-1']),
-                          'position': (80, 145)
+                          'position': (400, 700)
                           },
             'L1':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['L1'], DS4_ICONS['L1-1']),
-                          'position': (0, 40)
+                          'position': (0, 200)
                           },
             'L2':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['L2'], DS4_ICONS['L2-1']),
                           'position': (0, 0)
                           },
             'R1':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['R1'], DS4_ICONS['R1-1']),
-                          'position': (400, 40)
+                          'position': (1950, 200)
                           },
             'R2':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['R2'], DS4_ICONS['R2-1']),
-                          'position': (400, 0)
+                          'position': (1950, 0)
                           },
             'LS':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['STICK-BASE'], DS4_ICONS['STICK-BASE']),
-                          'position': (145, 190)
+                          'position': (700, 950)
                           },
             'RS':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['STICK-BASE'], DS4_ICONS['STICK-BASE']),
-                          'position': (265, 190)
+                          'position': (1325, 950)
                           },
             'L3':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['LS'], DS4_ICONS['L3']),
-                          'position': (145, 190)
+                          'position': (700, 950)
                           },
             'R3':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['RS'], DS4_ICONS['R3']),
-                          'position': (265, 190)
+                          'position': (1325, 950)
                           },
             'PS':
                       {
-                          'size':     QSize(30, 30),
+                          'size':     QSize(150, 150),
                           'icons':    (DS4_ICONS['PS'], DS4_ICONS['PS-1']),
-                          'position': (225, 230)
+                          'position': (1125, 1050)
                           },
             'TOUCHPAD':
                       {
-                          'size':     QSize(290, 140),
+                          'size':     QSize(1450, 700),
                           'icons':    (DS4_ICONS['TOUCHPAD'], DS4_ICONS['TOUCHPAD-1']),
-                          'position': (85, 0)
+                          'position': (425, 0)
                           },
             'SHARE':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['SHARE'], DS4_ICONS['SHARE-1']),
-                          'position': (60, 0)
+                          'position': (300, 0)
                           },
             'OPTIONS':
                       {
-                          'size':     QSize(70, 70),
+                          'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['OPTIONS'], DS4_ICONS['OPTIONS-1']),
-                          'position': (340, 0)
+                          'position': (1685, 0)
                           }
             }
 
-        for b in self.buttons.values():
+        for b in self._buttons.values():
             pix1 = QPixmap(b['icons'][0])
             spix1 = pix1.scaled(b['size'], Qt.AspectRatioMode.IgnoreAspectRatio,
                                 Qt.TransformationMode.SmoothTransformation)
@@ -147,30 +144,53 @@ class ControllerDisplay(QWidget):
                                 Qt.TransformationMode.SmoothTransformation)
             b['pixes'] = (spix1, spix2)
 
-        self.reset_flag = False
+        self._reset_flag = False
+
+        canvas = QPixmap(2300, 1300)
+        canvas.fill(QColor(0, 0, 0, 0))
+        painter = QPainter(canvas)
+        painter.setOpacity(0.3)
+        for b, meta in self._buttons.items():
+            painter.drawPixmap(meta['position'][0], meta['position'][1], meta['pixes'][0])
+        font = QFont('Arial', 100)
+        painter.setFont(font)
+        text = 'Please connect a controller'
+        text_rect = QFontMetrics(font).tightBoundingRect(text)
+        painter.setBrush(QBrush(Qt.GlobalColor.white, Qt.BrushStyle.SolidPattern))
+        back_rect = QRect((2300 - text_rect.width() - 100) // 2, (1300 - text_rect.height() - 100) // 2,
+                          text_rect.width() + 100, text_rect.height() + 100)
+        painter.setOpacity(0.8)
+        painter.drawRoundedRect(back_rect, 40, 40)
+        painter.setOpacity(1)
+        painter.drawText(0, 0, 2300, 1300, Qt.AlignmentFlag.AlignCenter, text)
+        painter.end()
+        self._no_controller_frame = canvas
 
     def resizeEvent(self, event):
-        self._view.resize(event.size())
+        self.resize(event.size())
 
     def display(self, states=Optional[dict]):
         if states is None:
-            if not self.reset_flag:
-                self.reset_flag = True
-                self._view.setText('Please connect a controller')
+            if not self._reset_flag:
+                self._reset_flag = True
+                self.setPixmap(self._no_controller_frame.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                                                Qt.TransformationMode.SmoothTransformation))
             return
 
-        self.reset_flag = False
+        self._reset_flag = False
 
-        canvas = QPixmap(460, 260)
+        canvas = QPixmap(2300, 1300)
         canvas.fill(QColor(0, 0, 0, 0))
         painter = QPainter(canvas)
-        for b, meta in self.buttons.items():
+        for b, meta in self._buttons.items():
             if b == 'R3':
-                painter.drawPixmap(meta['position'][0] + states['RS-H'] * 10, meta['position'][1] + states['RS-V'] * 10,
+                painter.drawPixmap(meta['position'][0] + states['RS-H'] * 50,
+                                   meta['position'][1] + states['RS-V'] * 50,
                                    meta['pixes'][states[b] > 0])
                 continue
             if b == 'L3':
-                painter.drawPixmap(meta['position'][0] + states['LS-H'] * 10, meta['position'][1] + states['LS-V'] * 10,
+                painter.drawPixmap(meta['position'][0] + states['LS-H'] * 50,
+                                   meta['position'][1] + states['LS-V'] * 50,
                                    meta['pixes'][states[b] > 0])
                 continue
             if b in ['RS', 'LS']:
@@ -181,4 +201,4 @@ class ControllerDisplay(QWidget):
         painter.end()
         canvas = canvas.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
                                Qt.TransformationMode.SmoothTransformation)
-        self._view.setPixmap(canvas)
+        self.setPixmap(canvas)
