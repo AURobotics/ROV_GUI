@@ -37,6 +37,8 @@ class Task(QWidget):
         self._done_button.clicked.connect(self._mark_done)
         normal.addWidget(self._done_button)
 
+        self._apply_type()
+
         self._edit_button = QPushButton(QIcon(str(ASSETS / 'edit.svg')), '')
         self._edit_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
         self._edit_button.clicked.connect(self.edit)
@@ -98,6 +100,9 @@ class Task(QWidget):
 
     def _save_edit(self):
         self._content = self._edit_field.text()
+
+        self._apply_type()
+
         self._edit_field.setReadOnly(True)
         self._label.setText(self._content)
         self._layout.setCurrentWidget(self._normal)
@@ -118,6 +123,14 @@ class Task(QWidget):
             self._save_edit()
         else:
             QLineEdit.keyPressEvent(_le, event)
+    
+    def _apply_type(self):
+        if self._content.endswith(':'):
+            self._label.setStyleSheet("QLabel { font-weight: bold; color: gray; }")
+            self._done_button.setVisible(False)
+        else:
+            self._label.setStyleSheet("QLabel { font-weight: normal; color: white; }")
+            self._done_button.setVisible(True)
 
 
 class TasksWidget(QListWidget):
