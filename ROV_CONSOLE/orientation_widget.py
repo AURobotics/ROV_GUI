@@ -121,7 +121,7 @@ class Compass(QWidget):
                                  QPointF(0, -radius + 7))
 
             if angle % 90 == 0:
-                label = {0: "N", 90: "E", 180: "S", 270: "W"}[angle]
+                label = {0: "N", 90: "W", 180: "S", 270: "E"}[angle]
                 painter.drawText(QPointF(-5, -radius + 25), label)
             elif angle % 30 == 0:
                 painter.drawText(QPointF(-10, -radius + 25), str(angle))
