@@ -242,7 +242,9 @@ class TaskViewWidget(QTreeWidget):
                     self._num_tasks_total -= 1
                     self._count_tasks(item)
             if subtask_done_num > 0 and subtask_done_num == level.childCount() and level != self.invisibleRootItem():
-                self.itemWidget(level, 0).mark_done()
+                widget = self.itemWidget(level, 0)
+                if isinstance(widget, TaskWidget):
+                    widget.mark_done()
         else:
             self._num_tasks_total += 1
 
@@ -262,7 +264,7 @@ class TaskViewWidget(QTreeWidget):
         if item.childCount():
             for i in range(item.childCount()):
                 citem = item.child(i)
-                widget: TaskWidget = self.itemWidget(citem, 0)
+                widget = self.itemWidget(citem, 0)
                 if isinstance(widget, TaskWidget):
                     meta = widget.metadata.copy()
                     subtree = self._get_embedded_tree(citem)
