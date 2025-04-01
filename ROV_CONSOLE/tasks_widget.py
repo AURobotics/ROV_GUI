@@ -15,9 +15,11 @@ from ROV_CONSOLE.constants import TASKS_ICONS_PATH as ASSETS
 
 
 class Task(QWidget):
-    def __init__(self, text: str, trash_callback: Callable):
+    def __init__(self, text: str, trash_callback: Callable, update_callback: Callable):
         super().__init__()
         self._content = text
+
+        self._update_callback = update_callback
 
         self._layout = QStackedLayout(self)
 
@@ -36,6 +38,8 @@ class Task(QWidget):
         self._done_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
         self._done_button.clicked.connect(self._mark_done)
         normal.addWidget(self._done_button)
+
+        self._apply_type()
 
         self._edit_button = QPushButton(QIcon(str(ASSETS / 'edit.svg')), '')
         self._edit_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
@@ -91,16 +95,20 @@ class Task(QWidget):
     def _mark_done(self):
         self._done_label.setText(self._content)
         self._layout.setCurrentWidget(self._done)
+        self._update_callback()
 
     def _restore(self):
         self._label.setText(self._content)
         self._layout.setCurrentWidget(self._normal)
+        self._update_callback()
 
     def _save_edit(self):
         self._content = self._edit_field.text()
+        self._apply_type()
         self._edit_field.setReadOnly(True)
         self._label.setText(self._content)
         self._layout.setCurrentWidget(self._normal)
+        self._update_callback()
 
     def _discard_edit(self):
         if self._edit_field.isReadOnly():
@@ -118,6 +126,14 @@ class Task(QWidget):
             self._save_edit()
         else:
             QLineEdit.keyPressEvent(_le, event)
+    
+    def _apply_type(self):
+        if self._content.endswith(':'):
+            self._label.setStyleSheet("QLabel { font-weight: bold; color: gray; }")
+            self._done_button.setVisible(False)
+        else:
+            self._label.setStyleSheet("QLabel { font-weight: normal; color: white; }")
+            self._done_button.setVisible(True)
 
 
 class TasksWidget(QListWidget):
@@ -132,19 +148,40 @@ class TasksWidget(QListWidget):
             for t in tasks:
                 item = QListWidgetItem()
                 self.addItem(item)
-                task = Task(t, partial(self._del_task, item))
+                task = Task(t, partial(self._del_task, item), self._update_task_counter)
                 item.setSizeHint(task.sizeHint())
                 self.setItemWidget(item, task)
 
         add_button = QPushButton('Add Task')
         add_button.setFont(QFont('Arial', 16))
+        add_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         add_button.clicked.connect(self._new_task)
+
+        self._task_counter = QLabel('0/0')
+        self._task_counter.setFont(QFont('Arial', 16))
+        self._task_counter.setStyleSheet("QLabel { background-color : none; }")
+        self._task_counter.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+
+        check_icon = QLabel()
+        check_icon.setPixmap(QIcon(str(ASSETS / 'checkmark.svg')).pixmap(24, 24))
+        check_icon.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+
+        add_widget = QWidget()
+        add_layout = QHBoxLayout(add_widget)
+        add_layout.setContentsMargins(0, 0, 0, 0)
+        add_layout.addWidget(add_button)
+        add_layout.addWidget(check_icon)
+        add_layout.addWidget(self._task_counter)
+
         self._add_task_item = QListWidgetItem()
-        self._add_task_item.setSizeHint(add_button.sizeHint())
+        self._add_task_item.setSizeHint(add_widget.sizeHint())
+
         self.addItem(self._add_task_item)
         self._add_task_item.setFlags(
             self._add_task_item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsSelectable)
-        self.setItemWidget(self._add_task_item, add_button)
+        self.setItemWidget(self._add_task_item, add_widget)
+
+        self._update_task_counter()
 
     def dropEvent(self, event: QDropEvent):
         target_item = self.itemAt(event.pos())
@@ -156,16 +193,29 @@ class TasksWidget(QListWidget):
     def _new_task(self):
         item = QListWidgetItem()
         self.insertItem(self.row(self._add_task_item), item)
-        task = Task('New Task', partial(self._del_task, item))
+        task = Task('New Task', partial(self._del_task, item), self._update_task_counter)
         item.setSizeHint(task.sizeHint())
         self.setItemWidget(item, task)
+        self._update_task_counter()
 
     def _edit_task(self, item: QListWidgetItem):
         task = self.itemWidget(item)
-        if isinstance(task, Task):
+        if isinstance(task, Task) and task._layout.currentIndex() == 0:
             task.edit()
 
     def _del_task(self, item: QListWidgetItem):
         self.removeItemWidget(item)
         self.takeItem(self.row(item))
         del item
+        self._update_task_counter()
+    
+    def _update_task_counter(self):
+        done = 0
+        total = 0
+        for i in range(self.count() - 1):
+            task = self.itemWidget(self.item(i))
+            if isinstance(task, Task) and not task._content.endswith(':'):
+                if task._layout.currentIndex() == 2:
+                    done += 1
+                total += 1
+        self._task_counter.setText(f'{done}/{total}')
