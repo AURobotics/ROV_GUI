@@ -138,7 +138,7 @@ class TaskWidget(QWidget):
 
     def _close_edit(self):
         self._edit_field.setReadOnly(True)
-        self.mark_pending()
+        self._mark_pending()
 
     def _esc_detector(self, _le: QLineEdit, event: QKeyEvent, /):
         if event.key() == Qt.Key.Key_Escape:
@@ -185,6 +185,9 @@ class TaskHeaderLayout(QHBoxLayout):
         self._trash_button.setVisible(onoff)
         if onoff is True:
             self._add_task_button.setToolTip('Add New Task Under Selection')
+        else:
+            if onoff is True:
+                self._add_task_button.setToolTip('Add New Task')
 
     def set_label_text(self, text: str):
         self._label.setText(text)
@@ -322,6 +325,7 @@ class TaskViewWidget(QTreeWidget):
         return tree
 
     def dropEvent(self, event: QDropEvent):
+        item_expansion = self.selectedItems()[0].isExpanded()
         selected_widget = self.itemWidget(self.selectedItems()[0], 0)
         if isinstance(selected_widget, TaskWidget):
             metadata = selected_widget.metadata.copy()
@@ -333,6 +337,10 @@ class TaskViewWidget(QTreeWidget):
             new_item.takeChildren()
             self._populate_from_list(children, new_item)
             self._notify_parent(new_item)
+            new_item.parent().setExpanded(item_expansion)
+            self.clearSelection()
+            new_item.setSelected(True)
+            new_item.setExpanded(True)
             self._update_num_tasks()
 
     def _new_task(self):
