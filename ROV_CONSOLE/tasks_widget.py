@@ -18,21 +18,18 @@ from ROV_CONSOLE.constants import TASKS_ICONS_PATH as ASSETS
 
 
 class TaskWidget(QWidget):
-    def __init__(self, content: str | dict, done_callback: Callable):
+    def __init__(self, content: str, status_callback, done=False):
         super().__init__()
-        if isinstance(content, dict):
-            self._chosen_layout = content['layout']
-            self._content = content['content']
-        else:
-            self._content = content
-            self._chosen_layout = 'normal'
+        self._content = content
+        self._status = done
+        self._emit_status_change = status_callback
 
         self._layout = QStackedLayout(self)
 
-        self._layouts = {'normal': QWidget()}
-        normal = QHBoxLayout(self._layouts['normal'])
+        self._display = QWidget()
+        normal = QHBoxLayout(self._display)
 
-        self._layout.addWidget(self._layouts['normal'])
+        self._layout.addWidget(self._display)
 
         self._label = QLabel(self._content)
         self._label.setFont(QFont('Arial', 14))
@@ -42,19 +39,27 @@ class TaskWidget(QWidget):
 
         self._done_button = QPushButton(QIcon(str(ASSETS / 'checkmark.svg')), '')
         self._done_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
-        self._done_callback = done_callback
-        self._done_button.clicked.connect(self._done)
+        self._done_button.clicked.connect(self._mark_done)
         normal.addWidget(self._done_button)
+
+        self._restore_button = QPushButton(QIcon(str(ASSETS / 'revert.svg')), '')
+        self._restore_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
+        self._restore_button.clicked.connect(self._mark_pending)
+        normal.addWidget(self._restore_button)
 
         self._edit_button = QPushButton(QIcon(str(ASSETS / 'edit.svg')), '')
         self._edit_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
         self._edit_button.clicked.connect(self.edit)
         normal.addWidget(self._edit_button)
 
-        self._layouts['edit'] = QWidget()
-        edit = QHBoxLayout(self._layouts['edit'])
+        self._done_button.setVisible(False)
+        self._edit_button.setVisible(False)
+        self._restore_button.setVisible(False)
 
-        self._layout.addWidget(self._layouts['edit'])
+        self._edit = QWidget()
+        edit = QHBoxLayout(self._edit)
+
+        self._layout.addWidget(self._edit)
 
         self._edit_field = QLineEdit()
         self._edit_field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -75,60 +80,65 @@ class TaskWidget(QWidget):
         self._edit_discard_button.clicked.connect(self._close_edit)
         edit.addWidget(self._edit_discard_button)
 
-        self._layouts['done'] = QWidget()
-        done = QHBoxLayout(self._layouts['done'])
-        self._layout.addWidget(self._layouts['done'])
-
-        self._done_label = QLabel(self._content)
-        self._done_label.setFont(QFont('Arial', 14))
-        self._done_label.setStyleSheet("QLabel { background-color : green; }")
-        done.addWidget(self._done_label)
-
-        self._restore_button = QPushButton(QIcon(str(ASSETS / 'revert.svg')), '')
-        self._restore_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
-        self._restore_button.clicked.connect(self._restore)
-        done.addWidget(self._restore_button)
-
-        self._layout.setCurrentWidget(self._layouts[self._chosen_layout])
+        self._layout.setCurrentWidget(self._display)
 
     @property
     def metadata(self):
-        return {'content': self._content, 'layout': self._chosen_layout}
+        return {'content': self._content, 'status': self._status}
+
+    def enterEvent(self, event, /):
+        if self._layout.currentWidget() == self._edit:
+            return
+        self._edit_button.setVisible(True)
+        if self._status:
+            self._done_button.setVisible(False)
+            self._restore_button.setVisible(True)
+        else:
+            self._done_button.setVisible(True)
+            self._restore_button.setVisible(False)
+
+    def leaveEvent(self, event, /):
+        self._edit_button.setVisible(False)
+        self._done_button.setVisible(False)
+        self._restore_button.setVisible(False)
 
     def edit(self):
         self._edit_field.setReadOnly(False)
         self._edit_field.setText(self._content)
-        self._layout.setCurrentWidget(self._layouts['edit'])
-        self._chosen_layout = 'edit'
+        self._layout.setCurrentWidget(self._edit)
         self._edit_field.setFocus()
 
     def mark_done(self):
-        self._done_label.setText(self._content)
-        self._layout.setCurrentWidget(self._layouts['done'])
-        self._chosen_layout = 'done'
+        self._label.setText(f'✅ {self._content}')
+        self._label.setStyleSheet('QLabel { color : gray; }')
+        self._layout.setCurrentWidget(self._display)
+        self._status = True
 
-    def _done(self):
-        self.mark_done()
-        self._done_callback()
-
-    def _restore(self):
+    def mark_pending(self):
         self._label.setText(self._content)
-        self._layout.setCurrentWidget(self._layouts['normal'])
-        self._chosen_layout = 'normal'
-        self._done_callback()
+        self._label.setStyleSheet('')
+        self._layout.setCurrentWidget(self._display)
+        self._status = False
+
+    def _mark_done(self):
+        self._restore_button.setVisible(True)
+        self._done_button.setVisible(False)
+        self.mark_done()
+        self._emit_status_change(True)
+
+    def _mark_pending(self):
+        self._restore_button.setVisible(False)
+        self._done_button.setVisible(True)
+        self.mark_pending()
+        self._emit_status_change(False)
 
     def _save_edit(self):
         self._content = self._edit_field.text()
         self._close_edit()
 
     def _close_edit(self):
-        if self._edit_field.isReadOnly():
-            return
         self._edit_field.setReadOnly(True)
-        self._label.setText(self._content)
-        self._label.setVisible(True)
-        self._layout.setCurrentWidget(self._layouts['normal'])
-        self._chosen_layout = 'normal'
+        self._mark_pending()
 
     def _esc_detector(self, _le: QLineEdit, event: QKeyEvent, /):
         if event.key() == Qt.Key.Key_Escape:
@@ -175,6 +185,12 @@ class TaskHeaderLayout(QHBoxLayout):
         self._trash_button.setVisible(onoff)
         if onoff is True:
             self._add_task_button.setToolTip('Add New Task Under Selection')
+        else:
+            if onoff is True:
+                self._add_task_button.setToolTip('Add New Task')
+
+    def set_label_text(self, text: str):
+        self._label.setText(text)
 
 
 class TaskViewWidget(QTreeWidget):
@@ -204,9 +220,9 @@ class TaskViewWidget(QTreeWidget):
             level = self.invisibleRootItem()
         if tasks is not None:
             for t in tasks:
-                status = 'normal'
+                mark_done = False
                 if isinstance(t, tuple):
-                    t, status = t  # add more validation here
+                    t, mark_done = t  # add more validation here
                 if not (isinstance(t, str) or isinstance(t, dict)):
                     continue
                 item = QTreeWidgetItem()
@@ -215,7 +231,7 @@ class TaskViewWidget(QTreeWidget):
                     task_name = t['name']
                 else:
                     task_name = t
-                widget = TaskWidget({'content': task_name, 'layout': status}, self._update_num_tasks)
+                widget = TaskWidget(task_name, partial(self._status_callback, item), mark_done)
                 item.setSizeHint(0, widget.sizeHint())
                 self.setItemWidget(item, 0, widget)
                 if isinstance(t, dict):
@@ -229,22 +245,61 @@ class TaskViewWidget(QTreeWidget):
             self._num_tasks_total = 0
         if level.childCount():
             self._num_tasks_total += level.childCount()
-            subtask_done_num = 0
             for i in range(level.childCount()):
                 item = level.child(i)
                 widget = self.itemWidget(item, 0)
                 if widget is not None:
                     if isinstance(widget, TaskWidget):
-                        if widget.metadata['layout'] == 'done':
-                            self._num_tasks_done += 1
-                            subtask_done_num += 1
+                        if widget.metadata['status']:
+                            if item.childCount() == 0:
+                                self._num_tasks_done += 1
                 if item.childCount():
                     self._num_tasks_total -= 1
                     self._count_tasks(item)
-            if subtask_done_num > 0 and subtask_done_num == level.childCount() and level != self.invisibleRootItem():
-                self.itemWidget(level, 0).mark_done()
         else:
             self._num_tasks_total += 1
+
+    def _notify_parent(self, item: QTreeWidgetItem):
+        parent = item.parent()
+        if parent is None or parent == self.invisibleRootItem():
+            return
+        child_count = parent.childCount()
+        done_child_count = 0
+        for i in range(child_count):
+            child = parent.child(i)
+            widget = self.itemWidget(child, 0)
+            if widget is not None:
+                if isinstance(widget, TaskWidget):
+                    if widget.metadata['status']:
+                        done_child_count += 1
+        widget = self.itemWidget(parent, 0)
+        if widget is not None:
+            if isinstance(widget, TaskWidget):
+                if child_count == done_child_count:
+                    widget.mark_done()
+                else:
+                    widget.mark_pending()
+        if parent.parent() is not None and parent.parent() != self.invisibleRootItem():
+            self._notify_parent(parent)
+
+    def _set_children_done(self, item: QTreeWidgetItem, status):
+        child_count = item.childCount()
+        for i in range(child_count):
+            child = item.child(i)
+            widget = self.itemWidget(child, 0)
+            if widget is not None:
+                if isinstance(widget, TaskWidget):
+                    if status:
+                        widget.mark_done()
+                    else:
+                        widget.mark_pending()
+            if child.childCount():
+                self._set_children_done(child, status)
+
+    def _status_callback(self, item, status):
+        self._set_children_done(item, status)
+        self._notify_parent(item)
+        self._update_num_tasks()
 
     def _find_the_widgetless(self, level: QTreeWidgetItem):
         for i in range(level.childCount()):
@@ -262,24 +317,30 @@ class TaskViewWidget(QTreeWidget):
         if item.childCount():
             for i in range(item.childCount()):
                 citem = item.child(i)
-                widget: TaskWidget = self.itemWidget(citem, 0)
+                widget = self.itemWidget(citem, 0)
                 if isinstance(widget, TaskWidget):
                     meta = widget.metadata.copy()
                     subtree = self._get_embedded_tree(citem)
-                    tree.append(({'name': meta['content'], 'tasks': subtree}, meta['layout']))
+                    tree.append(({'name': meta['content'], 'tasks': subtree}, meta['status']))
         return tree
 
     def dropEvent(self, event: QDropEvent):
+        item_expansion = self.selectedItems()[0].isExpanded()
         selected_widget = self.itemWidget(self.selectedItems()[0], 0)
         if isinstance(selected_widget, TaskWidget):
             metadata = selected_widget.metadata.copy()
             children = self._get_embedded_tree(self.selectedItems()[0])
             super().dropEvent(event)
             new_item = self._find_the_widgetless(self.invisibleRootItem())
-            new_widget = TaskWidget(metadata, self._update_num_tasks)
+            new_widget = TaskWidget(metadata['content'], partial(self._status_callback, new_item), metadata['status'])
             self.setItemWidget(new_item, 0, new_widget)
             new_item.takeChildren()
             self._populate_from_list(children, new_item)
+            self._notify_parent(new_item)
+            new_item.parent().setExpanded(item_expansion)
+            self.clearSelection()
+            new_item.setSelected(True)
+            new_item.setExpanded(True)
             self._update_num_tasks()
 
     def _new_task(self):
@@ -287,7 +348,7 @@ class TaskViewWidget(QTreeWidget):
         if len(self.selectedItems()) > 0:
             level = self.selectedItems()[0]
         item = QTreeWidgetItem()
-        widget = TaskWidget('New Task', self._count_tasks)
+        widget = TaskWidget('New Task', partial(self._status_callback, item))
         item.setSizeHint(0, widget.sizeHint())
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemNeverHasChildren)
         level.insertChild(0, item)
@@ -295,6 +356,7 @@ class TaskViewWidget(QTreeWidget):
         level.setExpanded(True)
         self.clearSelection()
         item.setSelected(True)
+        self._notify_parent(item)
         self._update_num_tasks()
 
     def _on_selection_change(self):
@@ -302,7 +364,7 @@ class TaskViewWidget(QTreeWidget):
 
     def _update_num_tasks(self):
         self._count_tasks()
-        self._header._label.setText(f'Tasks {self._num_tasks_done}/{self._num_tasks_total}')
+        self._header.set_label_text(f'Tasks {self._num_tasks_done}/{self._num_tasks_total}')
 
     def _del_task(self):
         item = (self.selectedItems()[0])
