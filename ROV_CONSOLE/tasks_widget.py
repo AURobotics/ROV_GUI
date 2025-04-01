@@ -81,6 +81,8 @@ class TaskWidget(QWidget):
         edit.addWidget(self._edit_discard_button)
 
         self._layout.setCurrentWidget(self._display)
+        if done:
+            self.mark_done()
 
     @property
     def metadata(self):
@@ -210,7 +212,7 @@ class TaskViewWidget(QTreeWidget):
         self._populate_from_list(tasks)
         self._num_tasks_total = 0
         self._num_tasks_done = 0
-        self._update_num_tasks()
+        self._update_header_counter()
 
         self.expandAll()
 
@@ -282,7 +284,7 @@ class TaskViewWidget(QTreeWidget):
         if parent.parent() is not None and parent.parent() != self.invisibleRootItem():
             self._notify_parent(parent)
 
-    def _set_children_done(self, item: QTreeWidgetItem, status):
+    def _set_children_status(self, item: QTreeWidgetItem, status):
         child_count = item.childCount()
         for i in range(child_count):
             child = item.child(i)
@@ -294,21 +296,23 @@ class TaskViewWidget(QTreeWidget):
                     else:
                         widget.mark_pending()
             if child.childCount():
-                self._set_children_done(child, status)
+                self._set_children_status(child, status)
 
     def _status_callback(self, item, status):
-        self._set_children_done(item, status)
+        self._set_children_status(item, status)
         self._notify_parent(item)
-        self._update_num_tasks()
+        self._update_header_counter()
 
-    def _find_the_widgetless(self, level: QTreeWidgetItem):
+    def _find_the_widgetless_level(self, level: Optional[QTreeWidgetItem] = None):
+        if level is None:
+            level = self.invisibleRootItem()
         for i in range(level.childCount()):
             item = level.child(i)
             widget = self.itemWidget(item, 0)
             if widget is None:
                 return item
             if item.childCount():
-                item_at_child = self._find_the_widgetless(item)
+                item_at_child = self._find_the_widgetless_level(item)
                 if item_at_child is not None:
                     return item_at_child
 
@@ -331,17 +335,18 @@ class TaskViewWidget(QTreeWidget):
             metadata = selected_widget.metadata.copy()
             children = self._get_embedded_tree(self.selectedItems()[0])
             super().dropEvent(event)
-            new_item = self._find_the_widgetless(self.invisibleRootItem())
+            new_item = self._find_the_widgetless_level()
             new_widget = TaskWidget(metadata['content'], partial(self._status_callback, new_item), metadata['status'])
             self.setItemWidget(new_item, 0, new_widget)
             new_item.takeChildren()
             self._populate_from_list(children, new_item)
             self._notify_parent(new_item)
-            new_item.parent().setExpanded(item_expansion)
+            if new_item.parent():
+                new_item.parent().setExpanded(True)
             self.clearSelection()
             new_item.setSelected(True)
-            new_item.setExpanded(True)
-            self._update_num_tasks()
+            new_item.setExpanded(item_expansion)
+            self._update_header_counter()
 
     def _new_task(self):
         level = self.invisibleRootItem()
@@ -357,12 +362,12 @@ class TaskViewWidget(QTreeWidget):
         self.clearSelection()
         item.setSelected(True)
         self._notify_parent(item)
-        self._update_num_tasks()
+        self._update_header_counter()
 
     def _on_selection_change(self):
         self._header.show_selection_buttons(len(self.selectedItems()) > 0)
 
-    def _update_num_tasks(self):
+    def _update_header_counter(self):
         self._count_tasks()
         self._header.set_label_text(f'Tasks {self._num_tasks_done}/{self._num_tasks_total}')
 
@@ -373,4 +378,4 @@ class TaskViewWidget(QTreeWidget):
             parent = self.invisibleRootItem()
         parent.takeChild(parent.indexOfChild(item))
         self.clearSelection()
-        self._update_num_tasks()
+        self._update_header_counter()
