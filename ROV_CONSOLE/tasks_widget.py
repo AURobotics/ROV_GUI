@@ -248,7 +248,8 @@ class TaskViewWidget(QTreeWidget):
                 if widget is not None:
                     if isinstance(widget, TaskWidget):
                         if widget.metadata['status']:
-                            self._num_tasks_done += 1
+                            if item.childCount() == 0:
+                                self._num_tasks_done += 1
                 if item.childCount():
                     self._num_tasks_total -= 1
                     self._count_tasks(item)
@@ -278,22 +279,24 @@ class TaskViewWidget(QTreeWidget):
         if parent.parent() is not None and parent.parent() != self.invisibleRootItem():
             self._notify_parent(parent)
 
-    def _set_children_done(self, item: QTreeWidgetItem):
+    def _set_children_done(self, item: QTreeWidgetItem, status):
         child_count = item.childCount()
         for i in range(child_count):
             child = item.child(i)
             widget = self.itemWidget(child, 0)
             if widget is not None:
                 if isinstance(widget, TaskWidget):
-                    widget.mark_done()
+                    if status:
+                        widget.mark_done()
+                    else:
+                        widget.mark_pending()
             if child.childCount():
-                self._set_children_done(child)
+                self._set_children_done(child, status)
 
     def _status_callback(self, item, status):
-        if status:
-            self._set_children_done(item)
+        self._set_children_done(item, status)
         self._notify_parent(item)
-        self._count_tasks()
+        self._update_num_tasks()
 
     def _find_the_widgetless(self, level: QTreeWidgetItem):
         for i in range(level.childCount()):
