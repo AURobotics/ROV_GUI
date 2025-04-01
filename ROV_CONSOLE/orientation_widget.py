@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPainterPath, QFont, QFontMetrics, QPixmap
-from PySide6.QtCore import Qt, QPointF, QRectF, QRect
+from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPainterPath
+from PySide6.QtCore import Qt, QPointF, QRectF
 from typing import Optional
 
 
