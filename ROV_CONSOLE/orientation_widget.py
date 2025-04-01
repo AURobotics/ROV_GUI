@@ -56,7 +56,7 @@ class AttitudeIndicator(QWidget):
             if angle % 30 == 0:
                 painter.drawLine(QPointF(0, -radius), QPointF(0, -radius + 10))
                 if angle % 180:
-                    painter.drawText(QPointF(-10, -radius + 22.5), f"{angle}")
+                    painter.drawText(QPointF(-10, -radius + 22.5), f"{-angle}")
             else:
                 painter.drawLine(QPointF(0, -radius), QPointF(0, -radius + 5))
             painter.restore()
@@ -72,7 +72,7 @@ class AttitudeIndicator(QWidget):
                 if offset % 30 == 0:
                     painter.drawLine(QPointF(-20, y_offset),
                                      QPointF(20, y_offset))
-                    painter.drawText(QPointF(20, y_offset + 5), f"{-offset}")
+                    painter.drawText(QPointF(20, y_offset + 5), f"{offset}")
                 else:
                     painter.drawLine(QPointF(-10, y_offset),
                                      QPointF(10, y_offset))
