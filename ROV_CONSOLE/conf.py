@@ -1,16 +1,24 @@
 import json
 
-from schema import Schema, Optional, Or
+from schema import Schema, Optional, Or, And
 
 from ROV_CONSOLE.constants import CONFIG_FILE
 
+TASK_TREE = Schema({
+    'name':            And(str, len),
+    Optional('tasks'): [Or(
+        And(str, len),
+        lambda task: TASK_TREE.validate(task)
+        )],
+    })
+
 CONFIG_SCHEMA = Schema(
     {
-        Optional('tasks'):        list[str],
-        Optional('main_camera'):  Or(None, str, int),
-        Optional('left_camera'):  Or(None, str, int),
-        Optional('right_camera'): Or(None, str, int),
-        Optional('com_port'):     Or(None, str),
+        Optional('tasks'):        [Or(And(str, len), TASK_TREE)],
+        Optional('main_camera'):  Or(None, And(str, len), int),
+        Optional('left_camera'):  Or(None, And(str, len), int),
+        Optional('right_camera'): Or(None, And(str, len), int),
+        Optional('com_port'):     Or(None, And(str, len)),
         }
     )
 

@@ -25,7 +25,7 @@ from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
 from ROV_CONSOLE.measurement_widget import MeasurementWindow
 from ROV_CONSOLE.orientation_widget import OrientationWidget
-from ROV_CONSOLE.tasks_widget import TasksWidget
+from ROV_CONSOLE.tasks_widget import TaskViewWidget
 from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 
@@ -492,7 +492,7 @@ class MainWindow(QMainWindow):
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
-        self.tasksWidget = TasksWidget(self, conf.tasks)
+        self.tasksWidget = TaskViewWidget(self, conf.tasks)
 
         self.comms_man = CommunicationManager(
             esp=self.esp, controller=self.controller,
