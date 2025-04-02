@@ -234,6 +234,8 @@ class TaskViewWidget(QTreeWidget):
                 else:
                     task_name = t
                 widget = TaskWidget(task_name, partial(self._status_callback, item), mark_done)
+                if level == self.invisibleRootItem():
+                    widget.setStyleSheet("QWidget { font-weight: bold; color: lightgrey; }")
                 item.setSizeHint(0, widget.sizeHint())
                 self.setItemWidget(item, 0, widget)
                 if isinstance(t, dict):
