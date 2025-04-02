@@ -6,6 +6,10 @@ This is the GUI for 2025's ROV, Giulietta. It allows the user to control the ROV
 
 ## User Guide
 
+### Controls
+
+[placeholder]
+
 ### Steps to connect to Pi:
 
 1. Connect to the Pi via SSH `ssh -o ServerAliveInterval=600 ubuntu@ubiquityrobot.local`

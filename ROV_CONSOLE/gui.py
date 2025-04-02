@@ -350,6 +350,16 @@ class MenuBar(QMenuBar):
         self._gp_menu_none_connected = QAction('No Controllers Connected')
         self._gp_menu_none_connected.setEnabled(False)
         self._gp_slots: dict[str:partial] = {}
+        self._tasks_menu = self.addMenu('Tasks')
+        self._migration_model = QAction('Invasive Carp Migration Model')
+        self._migration_model.triggered.connect(lambda: notification.notify(
+            title='Invasive Carp Migration Model',
+            message='Invasive Carp Migration Model is not yet implemented.',
+            timeout=2,
+            app_name='AU Robotics - Console',
+            app_icon=str(APP_ICON)
+        ))
+        self._tasks_menu.addAction(self._migration_model)
 
     def update(self):
         self._update_controller_menu()
