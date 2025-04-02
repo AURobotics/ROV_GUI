@@ -54,13 +54,13 @@ class ControllerDisplay(QLabel):
                       {
                           'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-LEFT'], DS4_ICONS['D-LEFT-1']),
-                          'position': (0, 700)
+                          'position': (0, 725)
                           },
             'D-RIGHT':
                       {
                           'size':     QSize(250, 250),
                           'icons':    (DS4_ICONS['D-RIGHT'], DS4_ICONS['D-RIGHT-1']),
-                          'position': (400, 700)
+                          'position': (400, 725)
                           },
             'L1':
                       {
@@ -90,7 +90,7 @@ class ControllerDisplay(QLabel):
                       {
                           'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['STICK-BASE'], DS4_ICONS['STICK-BASE']),
-                          'position': (700, 950)
+                          'position': (650, 950)
                           },
             'RS':
                       {
@@ -102,7 +102,7 @@ class ControllerDisplay(QLabel):
                       {
                           'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['LS'], DS4_ICONS['L3']),
-                          'position': (700, 950)
+                          'position': (650, 950)
                           },
             'R3':
                       {
@@ -114,7 +114,7 @@ class ControllerDisplay(QLabel):
                       {
                           'size':     QSize(150, 150),
                           'icons':    (DS4_ICONS['PS'], DS4_ICONS['PS-1']),
-                          'position': (1125, 1050)
+                          'position': (1100, 1050)
                           },
             'TOUCHPAD':
                       {
@@ -126,7 +126,7 @@ class ControllerDisplay(QLabel):
                       {
                           'size':     QSize(350, 350),
                           'icons':    (DS4_ICONS['SHARE'], DS4_ICONS['SHARE-1']),
-                          'position': (300, 0)
+                          'position': (275, 0)
                           },
             'OPTIONS':
                       {
