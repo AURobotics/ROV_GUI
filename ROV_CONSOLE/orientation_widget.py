@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPainterPath
-from PySide6.QtCore import Qt, QPointF, QRectF
 from typing import Optional
 
+from PySide6.QtCore import Qt, QPointF, QRectF
+from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QPainterPath
+from PySide6.QtWidgets import QWidget, QVBoxLayout
 
-class AttitudeIndicator(QWidget):
+
+class AltitudeIndicator(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.roll = 0
@@ -17,20 +18,20 @@ class AttitudeIndicator(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         size = min(self.width(), self.height())
         center = QPointF(self.width() / 2, self.height() / 2)
         radius = size / 2
 
-        painter.setPen(QPen(Qt.black, 2))
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
         painter.drawEllipse(center, radius + 2, radius + 2)
 
         path = QPainterPath()
         path.addEllipse(center, radius, radius)
         painter.setClipPath(path)
 
-        painter.setBrush(QBrush(Qt.black))
+        painter.setBrush(QBrush(Qt.GlobalColor.black))
         painter.drawEllipse(center, radius, radius)
 
         painter.translate(center)
@@ -49,7 +50,7 @@ class AttitudeIndicator(QWidget):
 
         painter.translate(center)
         painter.rotate(self.roll)
-        painter.setPen(QPen(Qt.black, 1))
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
         for angle in range(-170, 181, 10):
             painter.save()
             painter.rotate(angle)
@@ -65,7 +66,7 @@ class AttitudeIndicator(QWidget):
 
         painter.translate(center)
         painter.rotate(self.roll)
-        painter.setPen(QPen(Qt.white, 1))
+        painter.setPen(QPen(Qt.GlobalColor.white, 1))
         for offset in range(-80, 81, 10):
             y_offset = offset * (radius / 90)
             if -radius <= y_offset <= radius:
@@ -79,13 +80,13 @@ class AttitudeIndicator(QWidget):
 
         painter.resetTransform()
 
-        painter.setPen(QPen(Qt.black, 2))
-        painter.setBrush(QBrush(Qt.black))
+        painter.setPen(QPen(Qt.GlobalColor.black, 2))
+        painter.setBrush(QBrush(Qt.GlobalColor.black))
         painter.drawPolygon([
             QPointF(center.x() - 5, center.y() - radius + 10),
             QPointF(center.x() + 5, center.y() - radius + 10),
             QPointF(center.x(), center.y() - radius)
-        ])
+            ])
 
 
 class Compass(QWidget):
@@ -99,16 +100,16 @@ class Compass(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         size = min(self.width(), self.height())
         center = QPointF(self.width() / 2, self.height() / 2)
         radius = size / 2
 
-        painter.setBrush(QBrush(Qt.black))
+        painter.setBrush(QBrush(Qt.GlobalColor.black))
         painter.drawEllipse(center, radius, radius)
 
-        painter.setPen(QPen(Qt.white, 2))
+        painter.setPen(QPen(Qt.GlobalColor.white, 2))
         for angle in range(0, 360, 10):
             painter.save()
             painter.translate(center)
@@ -131,16 +132,16 @@ class Compass(QWidget):
 
         painter.translate(center)
         painter.rotate(-self.yaw)
-        painter.setBrush(QBrush(Qt.red))
+        painter.setBrush(QBrush(Qt.GlobalColor.red))
         painter.drawPolygon([
             QPointF(0, -radius / 1.5),
             QPointF(-10, 0),
             QPointF(10, 0)
-        ])
+            ])
 
         painter.resetTransform()
 
-        painter.setPen(QPen(Qt.white, 2))
+        painter.setPen(QPen(Qt.GlobalColor.white, 2))
         painter.drawEllipse(center, 5, 5)
 
 
@@ -149,7 +150,7 @@ class OrientationWidget(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout()
 
-        self.attitude = AttitudeIndicator()
+        self.attitude = AltitudeIndicator()
         self.compass = Compass()
 
         layout.addWidget(self.attitude)
@@ -163,7 +164,6 @@ class OrientationWidget(QWidget):
             yaw = readings['yaw']
             pitch = readings['pitch']
             roll = readings['roll']
-
         pitch = pitch % 360
         if pitch > 180:
             pitch -= 360
