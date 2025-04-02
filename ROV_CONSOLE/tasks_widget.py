@@ -203,7 +203,6 @@ class TaskViewWidget(QTreeWidget):
 
         self.itemSelectionChanged.connect(self._on_selection_change)
 
-        # self.setRootIsDecorated(False)
         self.setHeaderLabel('')
         self._header = TaskHeaderLayout(self._new_task, self._del_task, self.clearSelection)
         self.header().setLayout(self._header)
@@ -216,8 +215,9 @@ class TaskViewWidget(QTreeWidget):
 
         self.expandAll()
 
-    def _populate_from_list(self, tasks: Optional[list[str | dict | tuple]] = None, level: Optional[
-        QTreeWidgetItem] = None):
+    def _populate_from_list(self, tasks: Optional[list[str | dict | tuple]] = None,
+                            level: Optional[QTreeWidgetItem] = None):
+
         if level is None:
             level = self.invisibleRootItem()
         if tasks is not None:
@@ -234,8 +234,6 @@ class TaskViewWidget(QTreeWidget):
                 else:
                     task_name = t
                 widget = TaskWidget(task_name, partial(self._status_callback, item), mark_done)
-                if level == self.invisibleRootItem():
-                    widget.setStyleSheet("QWidget { font-weight: bold; color: lightgrey; }")
                 item.setSizeHint(0, widget.sizeHint())
                 self.setItemWidget(item, 0, widget)
                 if isinstance(t, dict):
@@ -258,8 +256,11 @@ class TaskViewWidget(QTreeWidget):
                             if item.childCount() == 0:
                                 self._num_tasks_done += 1
                 if item.childCount():
+                    widget.setStyleSheet('QWidget { font-weight: bold; color: lightgrey; }')
                     self._num_tasks_total -= 1
                     self._count_tasks(item)
+                else:
+                    widget.setStyleSheet('')
         else:
             self._num_tasks_total += 1
 
