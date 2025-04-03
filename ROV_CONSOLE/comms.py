@@ -5,7 +5,7 @@ from threading import Thread
 from time import sleep
 from typing import Optional
 
-from plyer import notification
+# from plyer import notification
 from schema import Schema, Optional, SchemaError
 
 from ROV_CONSOLE.esp32 import ESP32
@@ -89,7 +89,7 @@ class CommunicationManager:
                         #     timeout=2,
                         #     app_name='AU Robotics ROV GUI'
                         #     )
-                        print(consumed);
+                        print(consumed)
                     except SchemaError:
                         # Consumed message was a malformed readings message
                         readings = None
@@ -128,9 +128,7 @@ class CommunicationManager:
         toggles = self._cache['controller']
         # Touchpad Click - LED: 0000 0 LED 0      0
         # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-        toggles['led_and_valves'] ^= toggles['TOUCHPAD'] << 2
-        toggles['led_and_valves'] ^= toggles['L1'] << 1
-        toggles['led_and_valves'] ^= toggles['R1']
+        toggles['led_and_valves'] = toggles['TOUCHPAD'] << 2 + toggles['L1'] << 1 + toggles['R1']
 
         payload.append(toggles['led_and_valves'])
 
