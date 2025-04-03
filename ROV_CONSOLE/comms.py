@@ -81,12 +81,13 @@ class CommunicationManager:
                     except json.JSONDecodeError:
                         # Consumed message was an error or debug message
                         readings = None
-                        notification.notify(
-                            title='ROV MESSAGE',
-                            message=consumed,
-                            timeout=2,
-                            app_name='AU Robotics ROV GUI'
-                            )
+                        # temporarily removed because of spam
+                        # notification.notify(
+                        #     title='ROV MESSAGE',
+                        #     message=consumed,
+                        #     timeout=2,
+                        #     app_name='AU Robotics ROV GUI'
+                        #     )
                     except SchemaError:
                         # Consumed message was a malformed readings message
                         readings = None
