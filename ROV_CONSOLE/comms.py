@@ -88,6 +88,7 @@ class CommunicationManager:
                         #     timeout=2,
                         #     app_name='AU Robotics ROV GUI'
                         #     )
+                        print(consumed);
                     except SchemaError:
                         # Consumed message was a malformed readings message
                         readings = None

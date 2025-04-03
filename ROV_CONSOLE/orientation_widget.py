@@ -17,13 +17,14 @@ class OrientationWidget(QLabel):
             yaw = readings['yaw']
             pitch = readings['pitch']
             roll = readings['roll']
+
         pitch = pitch % 360
         if pitch > 180:
             pitch -= 360
-
         if abs(pitch) > 90:
             pitch = 180 - pitch if pitch > 0 else -180 - pitch
             roll = (roll + 180) % 360
+            roll = - roll
 
         pix = QPixmap(self.width(), self.height())
         pix.fill(QColor(0, 0, 0, 0))
