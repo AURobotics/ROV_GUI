@@ -14,7 +14,7 @@ import cv2
 import requests
 from cv2_enumerate_cameras import enumerate_cameras
 
-from .constants import CAMERA_ICONS
+from ROV_CONSOLE.paths import CAMERA_ICONS
 
 
 class ConnectionStatus(Enum):

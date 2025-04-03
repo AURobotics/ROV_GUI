@@ -2,7 +2,8 @@
 
 ## Description
 
-This is the GUI for 2025's ROV, Giulietta. It allows the user to control the ROV and view the camera feeds and telemetry data. It also facilitates the execution of underwater missions.
+This is the GUI for 2025's ROV, Giulietta. It allows the user to control the ROV and view the camera feeds and telemetry
+data. It also facilitates the execution of underwater missions.
 
 ## User Guide
 

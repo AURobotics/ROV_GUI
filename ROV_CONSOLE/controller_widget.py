@@ -4,7 +4,7 @@ from PySide6.QtCore import QSize, Qt, QRect
 from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QFontMetrics, QBrush
 from PySide6.QtWidgets import QLabel
 
-from .constants import ASSETS_PATH
+from ROV_CONSOLE.paths import ASSETS_PATH
 
 paths = [fp for fp in (ASSETS_PATH / 'controller_widget').iterdir()]
 DS4_ICONS = {f.stem: f for f in paths}

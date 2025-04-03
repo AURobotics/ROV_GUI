@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QWidget,
                                QTreeWidget,
                                QTreeWidgetItem, )
 
-from ROV_CONSOLE.constants import TASKS_ICONS_PATH as ASSETS
+from ROV_CONSOLE.paths import TASKS_ICONS_PATH as ASSETS
 
 
 class TaskWidget(QWidget):

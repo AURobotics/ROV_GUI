@@ -12,8 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QWidget,
     QInputDialog,
-    QLineEdit,
-    )
+    QLineEdit, )
 
 
 class MeasurementWindow(QWidget):

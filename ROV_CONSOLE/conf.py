@@ -2,7 +2,7 @@ import json
 
 from schema import Schema, Optional, Or, And
 
-from ROV_CONSOLE.constants import CONFIG_FILE
+from ROV_CONSOLE.paths import CONFIG_FILE
 
 TASK_TREE = Schema({
     'name':            And(str, len),

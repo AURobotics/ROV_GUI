@@ -8,6 +8,7 @@ from typing import Optional
 from plyer import notification
 from schema import Schema, Optional, SchemaError
 
+from ROV_CONSOLE.camera_widget import CameraWidget
 from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
@@ -28,7 +29,7 @@ class CommunicationManager:
     """Competition-specific handler for the ESP Comms"""
 
     def __init__(self, esp: ESP32, controller: Controller, controller_widget: ControllerDisplay,
-                 thrusters_widget: ThrustersWidget, orientation_widget: OrientationWidget):
+                 thrusters_widget: ThrustersWidget, orientation_widget: OrientationWidget, cameras: list[CameraWidget]):
         self._esp = esp
         self._controller = controller
         self._cache = {
@@ -39,6 +40,7 @@ class CommunicationManager:
         self._controller_widget = controller_widget
         self._thrusters_widget = thrusters_widget
         self._orientation_widget = orientation_widget
+        self._camera_widgets = cameras
         self._killswitch = False
         self._serial_incoming_thread = Thread(target=self._serial_incoming_loop, daemon=True)
         self._serial_incoming_thread.start()
@@ -53,7 +55,11 @@ class CommunicationManager:
         if not self._controller.connected:
             self._controller_widget.display(None)
         else:
-            self._controller_widget.display(self._controller.bindings_state)
+            bindings = self._controller.bindings_state.copy()
+            self._controller_widget.display(bindings)
+            for widget in self._camera_widgets:
+                if widget.photosphere_on and bindings['CROSS']:
+                    widget.capture()
 
     def _serial_outgoing_loop(self):
         while not self._killswitch:
