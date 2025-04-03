@@ -128,7 +128,7 @@ class CommunicationManager:
         toggles = self._cache['controller']
         # Touchpad Click - LED: 0000 0 LED 0      0
         # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-        toggles['led_and_valves'] = toggles['TOUCHPAD'] << 2 + toggles['L1'] << 1 + toggles['R1']
+        toggles['led_and_valves'] = toggles['TOUCHPAD'] * 4 + toggles['L1'] * 2 + toggles['R1']
 
         payload.append(toggles['led_and_valves'])
 
@@ -138,6 +138,7 @@ class CommunicationManager:
         # Terminator byte
         payload.append(255)
         payload = struct.pack("9B", *payload)
+        print(payload)
         return payload
 
     def __del__(self):
