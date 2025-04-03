@@ -222,10 +222,11 @@ class CameraWidget(QWidget):
             self._swap_button.setVisible(False)
             self._swap_button.setIconSize(QSize(24, 24))
             self._swap_button.clicked.connect(self._swap)
+            self._swap_button.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Expanding)
             if self._widget_position == CameraWidgetPosition.RIGHT:
                 self._grid.addWidget(self._swap_button, 4, 0, 1, 1)
             if self._widget_position == CameraWidgetPosition.LEFT:
-                self._grid.addWidget(self._swap_button, 4, 11, 1, 1)
+                self._grid.addWidget(self._swap_button, 4, 10, 1, 1, Qt.AlignmentFlag.AlignRight)
 
         self._camera_selector = CameraSelection(cam, self.change_cam)
         self._camera_selector.setVisible(False)

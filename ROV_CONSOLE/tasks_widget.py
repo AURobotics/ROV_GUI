@@ -125,14 +125,14 @@ class TaskWidget(QWidget):
 
     def _mark_done(self):
         """Called internally by the 'done' button"""
-        self._set_status_buttons_visibility(True)
         self.mark_done()
+        self._set_status_buttons_visibility(True)
         self._emit_status_change(True)
 
     def _mark_pending(self):
         """Called internally by the 'restore' button"""
-        self._set_status_buttons_visibility(True)
         self.mark_pending()
+        self._set_status_buttons_visibility(True)
         self._emit_status_change(False)
 
     def _save_edit(self):
