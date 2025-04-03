@@ -82,7 +82,7 @@ class CameraSelection(QToolButton):
         if isinstance(cameras, dict):
             cameras = [cameras]
         for cam in cameras:
-            option = QAction(f'{cam['name']}')
+            option = QAction(f'{cam["name"]}')
             self._menu.insertAction(position, option)
             f = partial(self._change_cam, cam['descriptor'])
             self._slots_cache.update({cam['descriptor']: f})
@@ -119,7 +119,7 @@ class CameraSelection(QToolButton):
 
         for cam in old_cameras:
             for option in self._qactions_cache:
-                if option.text() == f'{cam['name']}':
+                if option.text() == f'{cam["name"]}':
                     f = self._slots_cache.pop(cam['descriptor'])
                     option.triggered.disconnect(f)
                     self._menu.removeAction(option)
@@ -131,7 +131,7 @@ class CameraSelection(QToolButton):
                 if chosen['name'] == option.text():
                     option.setCheckable(True)
                     option.setChecked(True)
-                    self.setText(f'{chosen['name']}')
+                    self.setText(f'{chosen["name"]}')
                 else:
                     option.setChecked(False)
                     option.setCheckable(False)
