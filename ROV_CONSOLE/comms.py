@@ -23,6 +23,7 @@ readings_schema = Schema(
 
 class CommunicationManager:
     """Competition-specific handler for the ESP Comms"""
+    _PAYLOAD_MS = 0.033
 
     def __init__(self, esp: ESP32, controller: Controller):
         self._esp = esp
@@ -53,7 +54,7 @@ class CommunicationManager:
 
     def _serial_outgoing_loop(self):
         while not self._killswitch:
-            sleep(0.015)
+            sleep(self._PAYLOAD_MS)
             if self._esp.serial_ready:
                 if self._controller.connected:
                     self._esp.send(self._serial_controller_payload())
