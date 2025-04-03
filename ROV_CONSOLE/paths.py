@@ -7,6 +7,10 @@ ASSETS_PATH = Path(__file__).resolve().parent / 'assets'
 CAMERA_ICONS = ASSETS_PATH / 'camera_widget'
 APP_ICON = ASSETS_PATH / 'app' / 'appicon.ico'
 TASKS_ICONS_PATH = ASSETS_PATH / 'tasks_widget'
+CARP_MAP_PATH = ASSETS_PATH / 'invasive_carp_mission'
+CARP_MAP_PNG = CARP_MAP_PATH / 'map.png'
+CARP_MAP_REGIONS = [CARP_MAP_PATH / f'Region {i}.png' for i in range(1, 6)]
+
 if getattr(sys, "frozen", False):
     CONFIG_FILE = Path('config.json')
     PANO_SAVE = Path('pano/')
