@@ -1,54 +1,60 @@
 """
-Wrapper for PyGame with an RAII-conforming class 'Controller'.
-Manages the following:
-   - Choosing one or none of the currently connected gamepads
-   - Regularly presenting the state of the keybindings
-   - Regularly checking for, presenting and managing connection changes
-   - Publishing a human-readable interface for reading the state of keybindings
-   - TODO: support different types/ brands of gamepads - currently supports PS4/DS4 only
+    Wrapper for PyGame joysticks.
+    Manages the following:
+       - Choosing one or none of the currently connected gamepads
+       - Regularly presenting the state of the buttons
+       - Regularly checking for, presenting and managing connection changes
+       - Providing an event-based interface for tracking
+    TODO: support DS4, DS5, XBox 360 mappings - currently supports DS4 only,
+    see: https://github.com/libsdl-org/SDL/blob/SDL2/src/joystick/SDL_gamecontrollerdb.h
 """
 
 import time
-from collections.abc import Callable
 from enum import Enum, StrEnum
 from threading import Thread
-from typing import Any
+from typing import Optional, Callable
 
 import pygame
 
 
-class BindingNames(dict[str, list[str]], Enum):
+class Mappings(dict[str, list[str]], Enum):
     DS4 = {
-        "buttons":  [
-            "CROSS",
-            "CIRCLE",
-            "SQUARE",
-            "TRIANGLE",
-            "SHARE",
-            "PS",
-            "OPTIONS",
-            "L3",
-            "R3",
-            "L1",
-            "R1",
-            "D-UP",
-            "D-DOWN",
-            "D-LEFT",
-            "D-RIGHT",
-            "TOUCHPAD",
+        'buttons':  [
+            'CROSS',
+            'CIRCLE',
+            'SQUARE',
+            'TRIANGLE',
+            'SHARE',
+            'PS',
+            'OPTIONS',
+            'L3',
+            'R3',
+            'L1',
+            'R1',
+            'D-UP',
+            'D-DOWN',
+            'D-LEFT',
+            'D-RIGHT',
+            'TOUCHPAD',
             ],
-        "axes":     ["LS-H", "LS-V", "RS-H", "RS-V"],
-        "triggers": ["L2", "R2"],
+        'axes':     ['LS-H', 'LS-V', 'RS-H', 'RS-V'],
+        'triggers': ['L2', 'R2'],
         }
 
 
 class GamepadTypes(StrEnum):
-    DS4 = "PS4 Controller"
+    DS4 = 'PS4 Controller'
+    # DS5 = 'Sony Interactive Entertainment Wireless Controller'
+    # XBox = 'Xbox 360 Controller'
 
 
 class Controller:
-    """Manages gamepad connection, gamepad selection, and gamepad bindings"""
+    """
+        Manages gamepad connection & selection, and updates key states by polling the chosen gamepad at an interval.
 
+        Warning: instantiating a Controller will initialize pygame. This may need to be done in a specific sequence
+        relative to the rest of your code.
+    """
     _gamepads: list[pygame.joystick.JoystickType]
     _gamepad: pygame.joystick.JoystickType | None
     _type: str | None
@@ -70,6 +76,8 @@ class Controller:
         self._handler_thread = Thread(target=self._handler_loop, daemon=True)
         self._handler_thread.start()
 
+        self._listeners = []
+
     def _disconnect(self) -> None:
         self._gamepad = None
         self._gamepad_guid = None
@@ -80,6 +88,7 @@ class Controller:
 
     def _connect(self, i: int) -> None:
         self._gamepad = self._gamepads[i]
+        self._gamepad.init()
         self._gamepad_guid = self._gamepad.get_guid()
         for t in GamepadTypes:
             if t.value == self._gamepad.get_name():
@@ -100,15 +109,7 @@ class Controller:
 
     @property
     def bindings_state(self):
-        return self._bindings_state
-
-    @property
-    def payload_callback(self) -> Callable[[Any], None] | None:
-        return self._send_payload
-
-    @payload_callback.setter
-    def payload_callback(self, payload_callback) -> None:
-        self._send_payload = payload_callback
+        return self._bindings_state.copy()
 
     @property
     def gamepads(self) -> list[str]:
@@ -138,16 +139,38 @@ class Controller:
             if i.value == n:
                 self._connect(index)
 
+    def register_listener(self, callback: Callable, button: Optional[str | list[str]] = None, send_buttons=False):
+        self._listeners.append({'callback': callback, 'buttons': button, 'send_buttons': send_buttons})
+
     def _handler_loop(self):
+        events = [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED, pygame.QUIT, pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP]
         try:
             while not self._killswitch:
                 time.sleep(0.015)
                 try:
-                    for event in pygame.event.get():
+                    for event in pygame.event.get(events):
                         if event.type == pygame.JOYDEVICEADDED:
                             self._refresh_gamepads(connect_if_only_device=True)
-                        if event.type == pygame.JOYDEVICEREMOVED:
+                        elif event.type == pygame.JOYDEVICEREMOVED:
                             self._refresh_gamepads()
+                        elif event.type == pygame.JOYBUTTONDOWN:
+                            if self._gamepad is None:
+                                continue
+                            if self._gamepad.get_instance_id() != event.instance_id:
+                                continue
+                            if len(self._listeners) == 0:
+                                continue
+                            for listener in self._listeners:
+                                if listener['buttons'] is None \
+                                        or Mappings.DS4['buttons'][event.button] in listener['buttons']:
+                                    if listener['send_buttons']:
+                                        listener['callback'](Mappings.DS4['buttons'][event.button])
+                                    else:
+                                        listener['callback']()
+                        elif event.type == pygame.QUIT:
+                            pygame.quit()
+                            self._killswitch = True
+                            break
                 except Exception:
                     if self._killswitch:
                         break
@@ -156,7 +179,7 @@ class Controller:
 
                 buttons = {
                     k: self._gamepad.get_button(i)
-                    for i, k in enumerate(BindingNames[self._type]["buttons"])
+                    for i, k in enumerate(Mappings[self._type]['buttons'])
                     }
                 axes = {
                     a: (
@@ -164,17 +187,17 @@ class Controller:
                         if abs(self._gamepad.get_axis(i)) > self._STICK_DEADZONE
                         else 0
                     )
-                    for i, a in enumerate(BindingNames[self._type]["axes"])
+                    for i, a in enumerate(Mappings[self._type]['axes'])
                     }
                 triggers = {
                     t: (
                                self._gamepad.get_axis(
-                                   i + len(BindingNames[self._type]["axes"])
+                                   i + len(Mappings[self._type]['axes'])
                                    )
                                + 1
                        )
                        / 2
-                    for i, t in enumerate(BindingNames[self._type]["triggers"])
+                    for i, t in enumerate(Mappings[self._type]['triggers'])
                     }
                 self._bindings_state = {**buttons, **axes, **triggers}
 

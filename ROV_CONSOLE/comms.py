@@ -8,12 +8,8 @@ from typing import Optional
 from plyer import notification
 from schema import Schema, Optional, SchemaError
 
-from ROV_CONSOLE.camera_widget import CameraWidget
-from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
-from ROV_CONSOLE.orientation_widget import OrientationWidget
-from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 readings_schema = Schema(
     {
@@ -28,38 +24,32 @@ readings_schema = Schema(
 class CommunicationManager:
     """Competition-specific handler for the ESP Comms"""
 
-    def __init__(self, esp: ESP32, controller: Controller, controller_widget: ControllerDisplay,
-                 thrusters_widget: ThrustersWidget, orientation_widget: OrientationWidget, cameras: list[CameraWidget]):
+    def __init__(self, esp: ESP32, controller: Controller):
         self._esp = esp
         self._controller = controller
         self._cache = {
-            'controller':  {'led_and_valves': 0, 'L1_debounce': 0, 'R1_debounce': 0, 'TOUCHPAD_debounce': 0},
+            'controller':  {'led_and_valves': 0, 'L1': 0, 'R1': 0, 'TOUCHPAD': 0},
             'thrusters':   None,
             'orientation': None,
             }
-        self._controller_widget = controller_widget
-        self._thrusters_widget = thrusters_widget
-        self._orientation_widget = orientation_widget
-        self._camera_widgets = cameras
         self._killswitch = False
         self._serial_incoming_thread = Thread(target=self._serial_incoming_loop, daemon=True)
         self._serial_incoming_thread.start()
         self._serial_outgoing_thread = Thread(target=self._serial_outgoing_loop, daemon=True)
         self._serial_outgoing_thread.start()
+        self._controller.register_listener(self._controller_toggles, ['L1', 'R1', 'TOUCHPAD'], send_buttons=True)
 
-    def update_widgets(self):
-        """Updates widgets on main thread, strictly called from main thread"""
-        self._thrusters_widget.display(self._cache['thrusters'])
-        self._orientation_widget.display(self._cache['orientation'])
+    def _controller_toggles(self, button):
+        if self._esp.serial_ready:
+            self._cache['controller'][button] = not self._cache['controller'][button]
 
-        if not self._controller.connected:
-            self._controller_widget.display(None)
-        else:
-            bindings = self._controller.bindings_state.copy()
-            self._controller_widget.display(bindings)
-            for widget in self._camera_widgets:
-                if widget.photosphere_on and bindings['CROSS']:
-                    widget.capture()
+    @property
+    def thrusters_readings(self):
+        return self._cache['thrusters']
+
+    @property
+    def orientations_readings(self):
+        return self._cache['orientation']
 
     def _serial_outgoing_loop(self):
         while not self._killswitch:
@@ -78,9 +68,6 @@ class CommunicationManager:
 
                 self._cache['thrusters'] = None
                 self._cache['orientation'] = None
-                self._cache['controller']['L1_debounce'] = 0
-                self._cache['controller']['R1_debounce'] = 0
-                self._cache['controller']['TOUCHPAD_debounce'] = 0
             else:
                 consumed: Optional[str] = None
 
@@ -135,29 +122,14 @@ class CommunicationManager:
         payload = thruster_payload
         payload.append(sign_byte)
 
-        toggles_cache = self._cache['controller']
+        toggles = self._cache['controller']
         # Touchpad Click - LED: 0000 0 LED 0      0
         # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-        if toggles_cache['L1_debounce'] == 0 and bindings["L1"]:
-            toggles_cache['L1_debounce'] = 15
-            toggles_cache['led_and_valves'] ^= 1
+        toggles['led_and_valves'] ^= toggles['TOUCHPAD'] << 2
+        toggles['led_and_valves'] ^= toggles['L1'] << 1
+        toggles['led_and_valves'] ^= toggles['R1']
 
-        if toggles_cache['TOUCHPAD_debounce'] == 0 and bindings["TOUCHPAD"]:
-            toggles_cache['TOUCHPAD_debounce'] = 15
-            toggles_cache['led_and_valves'] ^= 4
-
-        if toggles_cache['R1_debounce'] == 0 and bindings["R1"]:
-            toggles_cache['R1_debounce'] = 15
-            toggles_cache['led_and_valves'] ^= 4
-
-        if toggles_cache['L1_debounce'] > 0:
-            toggles_cache['L1_debounce'] -= 1
-        if toggles_cache['TOUCHPAD_debounce'] > 0:
-            toggles_cache['TOUCHPAD_debounce'] -= 1
-        if toggles_cache['R1_debounce'] > 0:
-            toggles_cache['R1_debounce'] -= 1
-
-        payload.append(toggles_cache['led_and_valves'])
+        payload.append(toggles['led_and_valves'])
 
         # Checksum: XOR first 7 bytes
         payload.append(reduce(lambda x, y: x ^ y, payload[:7]))

@@ -66,7 +66,7 @@ class TaskWidget(QWidget):
         self._edit_field.setFont(QFont('Arial', 14))
         self._edit_field.setClearButtonEnabled(True)
         self._edit_field.setReadOnly(True)
-        self._edit_field.keyPressEvent = partial(self._esc_detector, self._edit_field)
+        self._edit_field.keyPressEvent = partial(self._edit_key_event, self._edit_field)
         self._edit_field.editingFinished.connect(self._close_edit)
         edit.addWidget(self._edit_field)
 
@@ -88,21 +88,22 @@ class TaskWidget(QWidget):
     def metadata(self):
         return {'content': self._content, 'status': self._status}
 
-    def enterEvent(self, event, /):
+    def _set_status_buttons_visibility(self, visible: bool):
         if self._layout.currentWidget() == self._edit:
             return
-        self._edit_button.setVisible(True)
+        self._edit_button.setVisible(visible)
         if self._status:
             self._done_button.setVisible(False)
-            self._restore_button.setVisible(True)
+            self._restore_button.setVisible(visible)
         else:
-            self._done_button.setVisible(True)
+            self._done_button.setVisible(visible)
             self._restore_button.setVisible(False)
 
+    def enterEvent(self, event, /):
+        self._set_status_buttons_visibility(True)
+
     def leaveEvent(self, event, /):
-        self._edit_button.setVisible(False)
-        self._done_button.setVisible(False)
-        self._restore_button.setVisible(False)
+        self._set_status_buttons_visibility(False)
 
     def edit(self):
         self._edit_field.setReadOnly(False)
@@ -123,14 +124,14 @@ class TaskWidget(QWidget):
         self._status = False
 
     def _mark_done(self):
-        self._restore_button.setVisible(True)
-        self._done_button.setVisible(False)
+        """Called internally by the 'done' button"""
+        self._set_status_buttons_visibility(True)
         self.mark_done()
         self._emit_status_change(True)
 
     def _mark_pending(self):
-        self._restore_button.setVisible(False)
-        self._done_button.setVisible(True)
+        """Called internally by the 'restore' button"""
+        self._set_status_buttons_visibility(True)
         self.mark_pending()
         self._emit_status_change(False)
 
@@ -142,7 +143,7 @@ class TaskWidget(QWidget):
         self._edit_field.setReadOnly(True)
         self._mark_pending()
 
-    def _esc_detector(self, _le: QLineEdit, event: QKeyEvent, /):
+    def _edit_key_event(self, _le: QLineEdit, event: QKeyEvent, /):
         if event.key() == Qt.Key.Key_Escape:
             _le.clearFocus()
             self._close_edit()

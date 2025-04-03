@@ -180,6 +180,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         # initialize pygame before setting window properties from Qt
         self.controller = Controller()
+
         conf = Config()
 
         self.esp = ESP32()
@@ -195,22 +196,17 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        self.main_camera_widget = CameraWidget(self, conf.main_camera, CameraWidgetPosition.MAIN)
-        self.left_camera_widget = CameraWidget(self, conf.left_camera, CameraWidgetPosition.LEFT,
-                                               self.main_camera_widget)
-        self.right_camera_widget = CameraWidget(self, conf.right_camera, CameraWidgetPosition.RIGHT,
-                                                self.main_camera_widget)
+        self.main_camera_widget = CameraWidget(conf.main_camera, CameraWidgetPosition.MAIN)
+        self.left_camera_widget = CameraWidget(conf.left_camera, CameraWidgetPosition.LEFT, self.main_camera_widget)
+        self.right_camera_widget = CameraWidget(conf.right_camera, CameraWidgetPosition.RIGHT, self.main_camera_widget)
+        self._camera_widgets = [self.main_camera_widget, self.left_camera_widget, self.right_camera_widget]
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
         self.thrustersWidget = ThrustersWidget(self)
         self.tasksWidget = TaskViewWidget(self, conf.tasks)
 
-        self.comms_man = CommunicationManager(
-            esp=self.esp, controller=self.controller,
-            controller_widget=self.controllerWidget,
-            thrusters_widget=self.thrustersWidget,
-            orientation_widget=self.orientationsWidget,
-            cameras=[self.main_camera_widget, self.left_camera_widget, self.right_camera_widget])
+        self.comms_man = CommunicationManager(esp=self.esp, controller=self.controller)
+        self.controller.register_listener(self.main_camera_widget.controller_listener, 'CROSS')
 
         grid = QGridLayout()
 
@@ -239,8 +235,18 @@ class MainWindow(QMainWindow):
         self.timer.start(15)
 
     def main_loop(self):
-        self.main_camera_widget.update()
-        self.left_camera_widget.update()
-        self.right_camera_widget.update()
+        for cam in self._camera_widgets:
+            cam.update()
+        self.thrustersWidget.display(self.comms_man.thrusters_readings)
+        self.orientationsWidget.display(self.comms_man.orientations_readings)
+        if not self.controller.connected:
+            self.controllerWidget.display(None)
+        else:
+            states = self.controller.bindings_state
+            self.controllerWidget.display(states)
         self.menu_bar.update()
-        self.comms_man.update_widgets()
+
+    def closeEvent(self, event, /):
+        super().closeEvent(event)
+        for cam in self._camera_widgets:
+            cam.close()
