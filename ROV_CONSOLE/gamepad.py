@@ -143,12 +143,13 @@ class Controller:
         self._listeners.append({'callback': callback, 'buttons': button, 'send_buttons': send_buttons})
 
     def _handler_loop(self):
-        events = [pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED, pygame.QUIT, pygame.JOYBUTTONDOWN, pygame.JOYBUTTONUP]
         try:
             while not self._killswitch:
                 time.sleep(0.015)
                 try:
-                    for event in pygame.event.get(events):
+                    # DO NOT PASS A LIST OF THE EVENTS OF INTEREST
+                    # CAN BREAK THE FUNCTION INTERNALLY AFTER PROLONGED USE
+                    for event in pygame.event.get():
                         if event.type == pygame.JOYDEVICEADDED:
                             self._refresh_gamepads(connect_if_only_device=True)
                         elif event.type == pygame.JOYDEVICEREMOVED:

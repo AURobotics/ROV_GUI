@@ -7,7 +7,7 @@ from threading import Thread
 from typing import Optional, Callable
 
 from PySide6.QtCore import Qt, QSize, Slot, Signal, QObject
-from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication
+from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import (
     QLabel,
     QWidget,
@@ -324,10 +324,6 @@ class CameraWidget(QWidget):
             self._toolbar_buttons['pano'].setText('')
 
     @property
-    def photosphere_on(self):
-        return self._photosphere_on
-
-    @property
     def controller_listener(self):
         return self._capture_signal.emit
 
@@ -357,6 +353,11 @@ class CameraWidget(QWidget):
         # Set frame
         frame_pixmap = self._pixmap_from_stream()
         frame_pixmap = frame_pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        if self._photosphere_on:
+            painter = QPainter(frame_pixmap)
+            painter.setPen(QPen(Qt.GlobalColor.green, 4))
+            painter.drawRect(frame_pixmap.rect())
+            painter.end()
         self._view.setPixmap(frame_pixmap)
 
         if self._popup_view is not None:
