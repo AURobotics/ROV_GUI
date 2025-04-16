@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import Optional
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon, QAction
@@ -18,6 +19,7 @@ from ROV_CONSOLE.conf import Config
 from ROV_CONSOLE.controller_widget import ControllerDisplay
 from ROV_CONSOLE.esp32 import ESP32
 from ROV_CONSOLE.gamepad import Controller
+from ROV_CONSOLE.invasive_carp_mission import InvasiveCarpMissionWindow
 from ROV_CONSOLE.orientation_widget import OrientationWidget
 from ROV_CONSOLE.paths import APP_ICON
 from ROV_CONSOLE.tasks_widget import TaskViewWidget
@@ -29,8 +31,9 @@ class MenuBar(QMenuBar):
     _controller_menu: QMenu
     _esp_actions: list[QAction]
 
-    def __init__(self, parent, esp: ESP32, controller: Controller):
+    def __init__(self, parent: MainWindow, esp: ESP32, controller: Controller):
         super().__init__(parent)
+        self._main_window = parent
         self._esp = esp
         self._esp_menu = self.addMenu('ESP')
         self._esp_menu_sep = self._esp_menu.addSeparator()
@@ -53,14 +56,16 @@ class MenuBar(QMenuBar):
         self._gp_slots: dict[str:partial] = {}
         self._tasks_menu = self.addMenu('Tasks')
         self._migration_model = QAction('Invasive Carp Migration Model')
-        self._migration_model.triggered.connect(lambda: notification.notify(
-            title='Invasive Carp Migration Model',
-            message='Invasive Carp Migration Model is not yet implemented.',
-            timeout=2,
-            app_name='AU Robotics - Console',
-            app_icon=str(APP_ICON)
-            ))
+        self._migration_model_window: Optional[QWidget] = None
+        self._migration_model.triggered.connect(self._launch_migration_window)
         self._tasks_menu.addAction(self._migration_model)
+
+    def _launch_migration_window(self):
+        if self._migration_model_window is not None:
+            if self._migration_model_window.isVisible():
+                return
+        self._migration_model_window = InvasiveCarpMissionWindow()
+        self._main_window.register_child_window(self._migration_model_window)
 
     def update(self):
         self._update_controller_menu()
@@ -205,6 +210,8 @@ class MainWindow(QMainWindow):
         self.thrustersWidget = ThrustersWidget(self)
         self.tasksWidget = TaskViewWidget(self, conf.tasks)
 
+        self._child_windows: list[QWidget] = []
+
         self.comms_man = CommunicationManager(esp=self.esp, controller=self.controller)
         self.controller.register_listener(self.main_camera_widget.controller_listener, 'CROSS')
 
@@ -246,7 +253,10 @@ class MainWindow(QMainWindow):
             self.controllerWidget.display(states)
         self.menu_bar.update()
 
+    def register_child_window(self, window: QWidget):
+        self._child_windows.append(window)
+
     def closeEvent(self, event, /):
         super().closeEvent(event)
-        for cam in self._camera_widgets:
-            cam.close()
+        for c in self._child_windows:
+            c.close()
