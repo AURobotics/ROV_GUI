@@ -7,14 +7,14 @@ from threading import Thread
 from typing import Optional, Callable
 
 from PySide6.QtCore import Qt, QSize, Slot, Signal, QObject
-from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QImage, QPixmap, QIcon, QAction, QGuiApplication, QPainter, QPen, QTransform
 from PySide6.QtWidgets import (
     QLabel,
     QWidget,
     QGridLayout,
     QPushButton,
     QInputDialog,
-    QLineEdit, QMenu, QToolButton, QSpacerItem, QSizePolicy, )
+    QLineEdit, QMenu, QToolButton, QSizePolicy, )
 from plyer import notification
 
 from ROV_CONSOLE.cv_stream import VideoStream, CapMetadata, CapType, ConnectionStatus, DisconnectReason
@@ -190,12 +190,20 @@ class CameraWidget(QWidget):
         self.setLayout(self._grid)
 
         toolbar_buttons = {
-            'hflip':       {'icon': QIcon(str(CAMERA_ICONS / 'flip-horizontal.svg')), 'function': self.hflip},
-            'vflip':       {'icon': QIcon(str(CAMERA_ICONS / 'flip-vertical.svg')), 'function': self.vflip},
+            'hflip':       {'icon':    QIcon(str(CAMERA_ICONS / 'flip-horizontal.svg')), 'function': self.hflip,
+                            'tooltip': 'Flip Horizontally'},
+            'vflip':       {'icon':    QIcon(str(CAMERA_ICONS / 'flip-vertical.svg')), 'function': self.vflip,
+                            'tooltip': 'Flip Vertically'},
             'measurement': {'icon':     QIcon(str(CAMERA_ICONS / 'ruler.svg')),
-                            'function': self._launch_length_measurement},
-            'pano':        {'icon': QIcon(str(CAMERA_ICONS / 'pano.svg')), 'function': self._toggle_photosphere},
-            'maximize':    {'icon': QIcon(str(CAMERA_ICONS / 'maximize.svg')), 'function': self._launch_popup_view},
+                            'function': self._launch_length_measurement, 'tooltip': 'Length Measurement Window'},
+            'pano':        {'icon':    QIcon(str(CAMERA_ICONS / 'pano.svg')), 'function': self._toggle_photosphere,
+                            'tooltip': 'Toggle Photosphere Captuing Mode'},
+            'maximize':    {'icon':    QIcon(str(CAMERA_ICONS / 'maximize.svg')), 'function': self._launch_popup_view,
+                            'tooltip': 'Maximize the Stream View'},
+            'r-left':      {'icon':    QIcon(str(CAMERA_ICONS / 'r-left.svg')), 'function': lambda: self._rotate(-1),
+                            'tooltip': 'Rotate 1 degree anti-clockwise'},
+            'r-right':     {'icon':    QIcon(str(CAMERA_ICONS / 'r-right.svg')), 'function': lambda: self._rotate(1),
+                            'tooltip': 'Rotate 1 degree clockwise'}
             }
 
         self._toolbar_buttons = {}
@@ -210,12 +218,9 @@ class CameraWidget(QWidget):
             pb.clicked.connect(toolbar_buttons[b]['function'])
             pb.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             pb.setVisible(False)
+            pb.setToolTip(toolbar_buttons[b]['tooltip'])
             self._toolbar_buttons.update({b: pb})
             self._grid.addWidget(pb, 9, col, 1, 1)
-            col += 1
-            self._grid.addItem(
-                QSpacerItem(24, 24, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding),
-                9, col, 1, 1)
             col += 1
         if self._widget_position != CameraWidgetPosition.MAIN:
             self._swap_button = QPushButton(QIcon(str(CAMERA_ICONS / 'swap.svg')), '')
@@ -236,9 +241,14 @@ class CameraWidget(QWidget):
 
         self._popup_view = None
 
+        self._rotation = 0
+
         self._signals = [CaptureSignal()]  # persistent reference to avoid GC
         self._capture_signal = self._signals[0].signal
         self._capture_signal.connect(self.capture)
+
+    def _rotate(self, deg: int):
+        self._rotation += deg
 
     def _popup_closed(self):
         self._popup_view = None
@@ -300,6 +310,9 @@ class CameraWidget(QWidget):
                 )
             .mirrored(horizontally=self._mirror_h, vertically=self._mirror_v)
         )
+        if self._rotation != 0:
+            rotation = QTransform().rotate(self._rotation)
+            q_image = q_image.transformed(rotation)
         return QPixmap.fromImage(q_image)
 
     def _launch_length_measurement(self):
