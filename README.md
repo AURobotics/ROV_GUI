@@ -15,8 +15,7 @@ data. It also facilitates the execution of underwater missions.
 
 1. Connect to the Pi via SSH `ssh -o ServerAliveInterval=600 ubuntu@ubiquityrobot.local`
 2. Enter password `ubuntu`
-3. Start the cameras using `./ustreamer/ustreamer --device=/dev/videox --host=0.0.0.0 --port=808x` (change the port for
-   each camera)
+3. Start the cameras using `./ustreamer/ustreamer --device=/dev/videox --host=0.0.0.0 --port=808x -m MJPEG` (change the port for each camera). The `-m MJPEG` flag is necessary as the default format YUYV is more CPU intensive and prevents streaming more than one camera at once.
 4. Connect to camera feeds from `http://192.168.1.2:808x/stream`
 5. Start the virtual USB in a new terminal using `sudo ./vhusbdarm -b`
 6. Connect to the virtual USB from the client
