@@ -170,12 +170,13 @@ class CameraWidget(QWidget):
     _signals: list[QObject]
     _capture_signal: Signal
 
-    def __init__(self, cam, widget_pos: CameraWidgetPosition, main_widget_ref: Optional[CameraWidget] = None, parent:
+    def __init__(self, defaults: dict, widget_pos: CameraWidgetPosition, main_widget_ref: Optional[
+        CameraWidget] = None, parent:
     Optional[QWidget] = None):
         super().__init__(parent)
         self._widget_position = widget_pos
         self._main_widget_ref = main_widget_ref
-        self._stream = VideoStream(cam)
+        self._stream = VideoStream(defaults['descriptor'])
         self._view = QLabel(self)
         self._view.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         ef = VideoStream.EMPTY_FRAME
@@ -233,7 +234,7 @@ class CameraWidget(QWidget):
             if self._widget_position == CameraWidgetPosition.LEFT:
                 self._grid.addWidget(self._swap_button, 4, 10, 1, 1, Qt.AlignmentFlag.AlignRight)
 
-        self._camera_selector = CameraSelection(cam, self.change_cam)
+        self._camera_selector = CameraSelection(defaults['descriptor'], self.change_cam)
         self._camera_selector.setVisible(False)
 
         self._grid.addWidget(self._camera_selector, 9, col, 1, 1)
@@ -241,7 +242,9 @@ class CameraWidget(QWidget):
 
         self._popup_view = None
 
-        self._rotation = 0
+        self._rotation = defaults.get('initial_rotation')
+        if self._rotation is None:
+            self._rotation = 0
 
         self._signals = [CaptureSignal()]  # persistent reference to avoid GC
         self._capture_signal = self._signals[0].signal
