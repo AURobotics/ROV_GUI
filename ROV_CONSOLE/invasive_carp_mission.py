@@ -108,7 +108,7 @@ class _DisplayWidget(QWidget):
 
     def _render_slide(self, year: int, regions: list[int]):
         year += 2016
-        overlay_color = QColor(randint(50, 200), randint(50, 100), 50)
+        overlay_color = QColor(255, randint(50, 100), 50)
         pix = QPixmap(str(CARP_MAP_PNG))
         overlays = [QPixmap(str(path)) for path in [CARP_MAP_REGIONS[r] for r in regions]]
         for overlay in overlays:
