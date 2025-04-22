@@ -65,8 +65,8 @@ class CommunicationManager:
                 else:
                     c = self._cache['controller']
                     s = self._cache['status']
-                    c['L1'] = s['dcv1']
-                    c['R1'] = s['dcv2']
+                    c['L1'] = s['dcv2']
+                    c['R1'] = s['dcv1']
                     c['TOUCHPAD'] = s['led']
 
     def _serial_incoming_loop(self):

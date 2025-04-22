@@ -53,6 +53,8 @@ class ROVDisplayWidget(QLabel):
                       'led': True}
         else:
             self._reset_flag = False
+            values['h3'] = -values['h3']
+            values['h4'] = -values['h4']
 
         canvas = QPixmap(1000, 1000)
         canvas.fill(QColor(0, 0, 0, 0))
