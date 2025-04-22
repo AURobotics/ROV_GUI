@@ -13,7 +13,7 @@ data. It also facilitates the execution of underwater missions.
 
 ### Steps to connect to Pi:
 
-1. Connect to the Pi via SSH `ssh -o ServerAliveInterval=600 ubuntu@ubiquityrobot.local`
+1. Connect to the Pi via SSH `ssh -o ServerAliveInterval=600 ubuntu@aurobotics.local`
 2. Enter password `ubuntu`
 3. Start the cameras using `./ustreamer/ustreamer --device=/dev/videox --host=0.0.0.0 --port=808x -m MJPEG` (change the port for each camera). The `-m MJPEG` flag is necessary as the default format YUYV is more CPU intensive and prevents streaming more than one camera at once.
 4. Connect to camera feeds from `http://192.168.1.2:808x/stream`
@@ -23,6 +23,11 @@ data. It also facilitates the execution of underwater missions.
 #### Extra Steps:
 
 - To kill the cameras, use `killall ./ustreamer/ustreamer`
+- To enable static IP on the Pi, use:
+```shell
+ip addr add 192.168.1.2/24 dev eth0
+ip route add default via 192.168.1.1
+```
 
 ## Contributing
 

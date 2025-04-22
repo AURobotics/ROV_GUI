@@ -62,7 +62,7 @@ class Controller:
     _bindings_state: dict[str, int | float]
     _killswitch: bool
     _handler_thread: Thread
-    _STICK_DEADZONE = 0.12
+    _STICK_DEADZONE = 0.2
 
     def __init__(self) -> None:
         pygame.init()
