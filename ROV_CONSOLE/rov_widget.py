@@ -68,14 +68,14 @@ class ROVDisplayWidget(QLabel):
             painter.drawPixmap(450, 450, self._pixmaps['led-off'])
 
         if values['dcv1']:
-            painter.drawPixmap(0, 300, self._pixmaps['dcv-open'])
-        else:
-            painter.drawPixmap(0, 300, self._pixmaps['dcv-closed'])
-
-        if values['dcv2']:
             painter.drawPixmap(850, 300, self._pixmaps['dcv-open'])
         else:
             painter.drawPixmap(850, 300, self._pixmaps['dcv-closed'])
+
+        if values['dcv2']:
+            painter.drawPixmap(0, 300, self._pixmaps['dcv-open'])
+        else:
+            painter.drawPixmap(0, 300, self._pixmaps['dcv-closed'])
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(Qt.GlobalColor.white, 3))
         for thr, data in self._hplacements.items():
@@ -95,16 +95,16 @@ class ROVDisplayWidget(QLabel):
         painter.drawEllipse(QPoint(500, 100), 90, 90)
         fill_brush = QBrush(Qt.BrushStyle.SolidPattern)
         normal_brush = QBrush(Qt.BrushStyle.NoBrush)
-        col = Qt.GlobalColor.green if values['v1'] > 0 else Qt.GlobalColor.red
-        fill_brush.setColor(col)
-        painter.setBrush(fill_brush)
-        painter.drawEllipse(QPoint(500, 100), abs(values['v1'] / 255) * 90, abs(values['v1'] / 255) * 90)
-        painter.setBrush(normal_brush)
-        painter.drawEllipse(QPoint(500, 900), 90, 90)
         col = Qt.GlobalColor.green if values['v2'] > 0 else Qt.GlobalColor.red
         fill_brush.setColor(col)
         painter.setBrush(fill_brush)
-        painter.drawEllipse(QPoint(500, 900), abs(values['v2'] / 255) * 90, abs(values['v2'] / 255) * 90)
+        painter.drawEllipse(QPoint(500, 100), abs(values['v2'] / 255) * 90, abs(values['v2'] / 255) * 90)
+        painter.setBrush(normal_brush)
+        painter.drawEllipse(QPoint(500, 900), 90, 90)
+        col = Qt.GlobalColor.green if values['v1'] > 0 else Qt.GlobalColor.red
+        fill_brush.setColor(col)
+        painter.setBrush(fill_brush)
+        painter.drawEllipse(QPoint(500, 900), abs(values['v1'] / 255) * 90, abs(values['v1'] / 255) * 90)
         painter.setBrush(normal_brush)
 
         if self._reset_flag:
