@@ -100,7 +100,7 @@ class CameraSelection(QToolButton):
         chosen = current
         new_custom = chosen if chosen not in cameras and chosen != old_custom else None
         if new_custom is not None:
-            self._last_known_url = new_custom
+            self._last_known_url = new_custom['descriptor']
         new_cameras = [cam for cam in cameras if cam not in self._cameras_cache]
         old_cameras = [cam for cam in self._cameras_cache if cam not in cameras and cam != old_custom]
 
@@ -146,7 +146,7 @@ class CameraSelection(QToolButton):
             'Choose Camera by URL',
             'URL:',
             QLineEdit.EchoMode.Normal,
-            self._last_known_url,
+            str(self._last_known_url),
             )
         if ok:
             self._change_cam(text)
