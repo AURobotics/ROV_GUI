@@ -5,7 +5,6 @@ from threading import Thread
 from time import sleep
 from typing import Optional
 
-# from plyer import notification
 from schema import Schema, Optional, SchemaError
 
 from ROV_CONSOLE.esp32 import ESP32
@@ -29,8 +28,9 @@ class CommunicationManager:
         self._esp = esp
         self._controller = controller
         self._cache = {
-            'controller':  {'led_and_valves': 0, 'L1': 0, 'R1': 0, 'TOUCHPAD': 0},
-            'thrusters':   None,
+            'controller':  {'L1': 0, 'R1': 0, 'TOUCHPAD': 0},
+            'status':      {},
+            'thrusters':   {},
             'orientation': None,
             }
         self._killswitch = False
@@ -45,8 +45,12 @@ class CommunicationManager:
             self._cache['controller'][button] = not self._cache['controller'][button]
 
     @property
+    def led_and_valves(self):
+        return self._cache['status'].copy()
+
+    @property
     def thrusters_readings(self):
-        return self._cache['thrusters']
+        return self._cache['thrusters'].copy()
 
     @property
     def orientations_readings(self):
@@ -58,6 +62,12 @@ class CommunicationManager:
             if self._esp.serial_ready:
                 if self._controller.connected:
                     self._esp.send(self._serial_controller_payload())
+                else:
+                    c = self._cache['controller']
+                    s = self._cache['status']
+                    c['L1'] = s['dcv1']
+                    c['R1'] = s['dcv2']
+                    c['TOUCHPAD'] = s['led']
 
     def _serial_incoming_loop(self):
         """Updates internal values, runs on separate internal thread"""
@@ -67,7 +77,8 @@ class CommunicationManager:
                 # Reset the transient part of the cache
                 # Non-transient keys include: controller['leds_and_valves']
 
-                self._cache['thrusters'] = None
+                self._cache['thrusters'] = {}
+                self._cache['status'] = {}
                 self._cache['orientation'] = None
             else:
                 consumed: Optional[str] = None
@@ -82,21 +93,18 @@ class CommunicationManager:
                     except json.JSONDecodeError:
                         # Consumed message was an error or debug message
                         readings = None
-                        # temporarily removed because of spam
-                        # notification.notify(
-                        #     title='ROV MESSAGE',
-                        #     message=consumed,
-                        #     timeout=2,
-                        #     app_name='AU Robotics ROV GUI'
-                        #     )
                         print(consumed)
                     except SchemaError:
                         # Consumed message was a malformed readings message
                         readings = None
+                    except TypeError:
+                        # Probably interrupted connection
+                        pass
 
                     if readings is not None:
                         self._cache['thrusters'] = readings['thrusters'].copy()
                         self._cache['orientation'] = readings['orientation'].copy()
+                        self._cache['status'] = readings['status'].copy()
 
     def _serial_controller_payload(self):
         # Keybindings:
@@ -128,9 +136,9 @@ class CommunicationManager:
         toggles = self._cache['controller']
         # Touchpad Click - LED: 0000 0 LED 0      0
         # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
-        toggles['led_and_valves'] = toggles['L1'] * 4 + toggles['R1'] * 2 + toggles['TOUCHPAD']
+        led_and_valves = toggles['L1'] * 4 + toggles['R1'] * 2 + toggles['TOUCHPAD']
 
-        payload.append(toggles['led_and_valves'])
+        payload.append(led_and_valves)
 
         # Checksum: XOR first 7 bytes
         payload.append(reduce(lambda x, y: x ^ y, payload[:7]))
@@ -138,7 +146,6 @@ class CommunicationManager:
         # Terminator byte
         payload.append(255)
         payload = struct.pack("9B", *payload)
-        #print(payload)
         return payload
 
     def __del__(self):

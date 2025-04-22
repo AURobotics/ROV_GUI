@@ -9,7 +9,9 @@ APP_ICON = ASSETS_PATH / 'app' / 'appicon.ico'
 TASKS_ICONS_PATH = ASSETS_PATH / 'tasks_widget'
 CARP_MISSION_PATH = ASSETS_PATH / 'invasive_carp_mission'
 CARP_MAP_PNG = CARP_MISSION_PATH / 'map.png'
-CARP_MAP_REGIONS = [CARP_MISSION_PATH / f'Region {i}.png' for i in range(1, 6)]
+CARP_MAP_REGIONS = list(CARP_MISSION_PATH.glob('Region *.png'))
+ROV_ASSETS_PATH = ASSETS_PATH / 'rov'
+ROV_ASSETS = list(ROV_ASSETS_PATH.glob('*.svg'))
 
 if getattr(sys, "frozen", False):
     CONFIG_FILE = Path('config.json')

@@ -1,11 +1,13 @@
 from typing import Optional
 
 from PySide6.QtCore import QRect, QPoint
-from PySide6.QtGui import QPainter, QPen, Qt, QPixmap, QColor, QBrush, QFontMetrics, QFont
+from PySide6.QtGui import QPainter, QPen, Qt, QPixmap, QColor, QBrush, QFont, QFontMetrics
 from PySide6.QtWidgets import QLabel
 
+from ROV_CONSOLE.paths import ROV_ASSETS
 
-class ThrustersWidget(QLabel):
+
+class ROVDisplayWidget(QLabel):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -32,6 +34,7 @@ class ThrustersWidget(QLabel):
                 'rectangle': (0, -100)
                 }
             }
+        self._pixmaps = {f.stem: QPixmap(str(f)) for f in ROV_ASSETS}
         self._reset_flag = False
         self._canvas = None
 
@@ -42,11 +45,12 @@ class ThrustersWidget(QLabel):
                                                Qt.TransformationMode.SmoothTransformation))
 
     def display(self, values: Optional[dict]):
-        if values is None:
+        if len(values) == 0:
             if self._reset_flag:
                 return
             self._reset_flag = True
-            values = {'h1': 255, 'h2': 255, 'h3': 255, 'h4': 255, 'v1': 255, 'v2': 255}
+            values = {'h1':  255, 'h2': 255, 'h3': 255, 'h4': 255, 'v1': 255, 'v2': 255, 'dcv1': False, 'dcv2': False,
+                      'led': True}
         else:
             self._reset_flag = False
 
@@ -55,9 +59,23 @@ class ThrustersWidget(QLabel):
         painter = QPainter(canvas)
         if self._reset_flag:
             painter.setOpacity(0.2)
+        painter.fillRect(250, 250, 500, 500, Qt.GlobalColor.white)
+        if values['led']:
+            painter.drawPixmap(450, 450, self._pixmaps['led-on'])
+        else:
+            painter.drawPixmap(450, 450, self._pixmaps['led-off'])
+
+        if values['dcv1']:
+            painter.drawPixmap(0, 300, self._pixmaps['dcv-open'])
+        else:
+            painter.drawPixmap(0, 300, self._pixmaps['dcv-closed'])
+
+        if values['dcv2']:
+            painter.drawPixmap(850, 300, self._pixmaps['dcv-open'])
+        else:
+            painter.drawPixmap(850, 300, self._pixmaps['dcv-closed'])
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(Qt.GlobalColor.white, 3))
-        painter.fillRect(250, 250, 500, 500, Qt.GlobalColor.white)
         for thr, data in self._hplacements.items():
             painter.save()
             painter.translate(data['origin'][0], data['origin'][1])

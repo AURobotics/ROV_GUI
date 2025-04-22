@@ -93,7 +93,8 @@ class ESP32:
                     return
                 self._serial.port = port
                 self._serial.open()
-            except (serial.SerialException, ValueError):
+            except Exception as e:
+                print(e)
                 self._serial.port = None
             finally:
                 self._connection_in_progress = False

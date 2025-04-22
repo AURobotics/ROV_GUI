@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QInputDialog,
     QLineEdit, QMenuBar, QMenu, )
-from plyer import notification
 
 from ROV_CONSOLE.camera_widget import CameraWidget, CameraWidgetPosition
 from ROV_CONSOLE.comms import CommunicationManager
@@ -22,8 +21,8 @@ from ROV_CONSOLE.gamepad import Controller
 from ROV_CONSOLE.invasive_carp_mission import InvasiveCarpMissionWindow
 from ROV_CONSOLE.orientation_widget import OrientationWidget
 from ROV_CONSOLE.paths import APP_ICON
+from ROV_CONSOLE.rov_widget import ROVDisplayWidget
 from ROV_CONSOLE.tasks_widget import TaskViewWidget
-from ROV_CONSOLE.thrusters_widget import ThrustersWidget
 
 
 class MenuBar(QMenuBar):
@@ -207,7 +206,7 @@ class MainWindow(QMainWindow):
         self._camera_widgets = [self.main_camera_widget, self.left_camera_widget, self.right_camera_widget]
         self.orientationsWidget = OrientationWidget(self)
         self.controllerWidget = ControllerDisplay(self)
-        self.thrustersWidget = ThrustersWidget(self)
+        self.rov_display_widget = ROVDisplayWidget(self)
         self.tasksWidget = TaskViewWidget(self, conf.tasks)
 
         self._child_windows: list[QWidget] = []
@@ -232,7 +231,7 @@ class MainWindow(QMainWindow):
         grid.addWidget(self.orientationsWidget, 1, 0, 2, 1)
 
         grid.addWidget(self.controllerWidget, 2, 1, 1, 1)
-        grid.addWidget(self.thrustersWidget, 2, 2, 1, 1)
+        grid.addWidget(self.rov_display_widget, 2, 2, 1, 1)
         grid.addWidget(self.tasksWidget, 1, 2, 1, 1)
 
         central_widget.setLayout(grid)
@@ -244,7 +243,8 @@ class MainWindow(QMainWindow):
     def main_loop(self):
         for cam in self._camera_widgets:
             cam.update()
-        self.thrustersWidget.display(self.comms_man.thrusters_readings)
+        rov_state = {**self.comms_man.thrusters_readings, **self.comms_man.led_and_valves}
+        self.rov_display_widget.display(rov_state)
         self.orientationsWidget.display(self.comms_man.orientations_readings)
         if not self.controller.connected:
             self.controllerWidget.display(None)
