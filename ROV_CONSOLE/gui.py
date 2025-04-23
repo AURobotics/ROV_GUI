@@ -223,16 +223,19 @@ class MainWindow(QMainWindow):
         grid.setRowStretch(0, 1)
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 1)
+        grid.setRowStretch(3, 1)
+        grid.setRowStretch(4, 1)
+        grid.setRowStretch(5, 1)
 
-        grid.addWidget(self.main_camera_widget, 0, 1, 2, 1)
-        grid.addWidget(self.left_camera_widget, 0, 0, 1, 1)
-        grid.addWidget(self.right_camera_widget, 0, 2, 1, 1)
+        grid.addWidget(self.main_camera_widget, 0, 1, 4, 1)
+        grid.addWidget(self.left_camera_widget, 0, 0, 3, 1)
+        grid.addWidget(self.right_camera_widget, 0, 2, 3, 1)
 
-        grid.addWidget(self.orientationsWidget, 1, 0, 2, 1)
+        grid.addWidget(self.orientationsWidget, 3, 0, 3, 1)
 
-        grid.addWidget(self.controllerWidget, 2, 1, 1, 1)
-        grid.addWidget(self.rov_display_widget, 2, 2, 1, 1)
-        grid.addWidget(self.tasksWidget, 1, 2, 1, 1)
+        grid.addWidget(self.controllerWidget, 4, 1, 2, 1)
+        grid.addWidget(self.rov_display_widget, 4, 2, 2, 1)
+        grid.addWidget(self.tasksWidget, 3, 2, 1, 1)
 
         central_widget.setLayout(grid)
         self.setMinimumSize(self.size())
