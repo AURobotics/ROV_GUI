@@ -311,7 +311,9 @@ class VideoStream:
                     ok, f = self._cap.read()
                     if not self._cap.isOpened() or not ok:
                         self._connection_status = ConnectionStatus.DISCONNECTED
+                        desc = self._cap_meta['descriptor']
                         self.__class__._enqueue_connection(self, None, DisconnectReason.RESOURCE_BUSY)
+                        self.__class__._enqueue_connection(self, desc)
                         self._frame = None
                         continue
                     self._frame = f
