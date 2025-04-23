@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Callable, Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QFont, QKeyEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget,
                                QSizePolicy,
@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (QWidget,
                                QLineEdit,
                                QStackedLayout,
                                QTreeWidget,
-                               QTreeWidgetItem, )
+                               QTreeWidgetItem,
+                               )
 
 from ROV_CONSOLE.paths import TASKS_ICONS_PATH as ASSETS
 
@@ -154,8 +155,25 @@ class TaskWidget(QWidget):
 
 
 class TaskHeaderLayout(QHBoxLayout):
+    _DEFAULT_DURATION = 15 * 60
+
     def __init__(self, add_task_callback: Callable, trash_callback: Callable, deselect_callback: Callable):
         super().__init__()
+
+        self._timer_reset_button = QPushButton(QIcon(str(ASSETS / 'cancel.svg')), '')
+        self._timer_reset_button.clicked.connect(lambda: self._timer_set(self._DEFAULT_DURATION))
+        self._timer_text = QLabel()
+        self._timer_text.setFont(QFont('Arial', 16))
+        self._timer = QTimer()
+        self._time_left = self._DEFAULT_DURATION
+        self._timer.timeout.connect(self._timer_tick)
+        self._pause_resume_icons = {'pause': QIcon(str(ASSETS / 'pause.svg')), 'resume': QIcon(str(ASSETS / 'resume.svg'))}
+        self._timer_pause_button = QPushButton(self._pause_resume_icons['resume'], '')
+        self._timer_pause_button.clicked.connect(self._timer_pause_resume)
+        self._timer_set(self._DEFAULT_DURATION)
+        self.addWidget(self._timer_reset_button)
+        self.addWidget(self._timer_pause_button)
+        self.addWidget(self._timer_text)
 
         self._label = QLabel('Tasks')
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -194,6 +212,21 @@ class TaskHeaderLayout(QHBoxLayout):
 
     def set_label_text(self, text: str):
         self._label.setText(text)
+    
+    def _timer_set(self, time):
+        self._time_left = time
+        self._timer_text.setText(f'{time // 60}:{time % 60:02}')
+
+    def _timer_pause_resume(self):
+        if self._timer.isActive():
+            self._timer.stop()
+            self._timer_pause_button.setIcon(self._pause_resume_icons['resume'])
+        else:
+            self._timer.start(1000)
+            self._timer_pause_button.setIcon(self._pause_resume_icons['pause'])
+
+    def _timer_tick(self):
+        self._timer_set(self._time_left - 1)
 
 
 class TaskViewWidget(QTreeWidget):
