@@ -106,7 +106,8 @@ class ESP32:
         try:
             if self.connected:
                 self._serial.write(buffer)
-        except (serial.SerialException, serial.serialutil.SerialException):
+        except Exception as e:
+            print(e, file=stderr)
             self.disconnect()
             return
 
@@ -114,7 +115,8 @@ class ESP32:
     def incoming(self):
         try:
             return self._serial.in_waiting
-        except (serial.SerialException, serial.serialutil.PortNotOpenError):
+        except Exception as e:
+            print(e)
             self.disconnect()
             return None
 
@@ -122,7 +124,8 @@ class ESP32:
     def next_line(self):
         try:
             return self._serial.readline().decode().rstrip()
-        except serial.SerialException:
+        except Exception as e:
+            print(e)
             self.disconnect()
             return None
 

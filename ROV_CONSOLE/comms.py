@@ -119,8 +119,8 @@ class CommunicationManager:
         signed_payload = [
             int(-254 * bindings["LS-V"]),
             int(254 * bindings["LS-H"]),
-            int(-254 * bindings["RS-V"]),
-            int(-254 * bindings["RS-H"]),
+            int(254 * bindings["RS-V"]),
+            int(-127 * bindings["RS-H"]),
             int(
                 254 * (bindings["R2"] - bindings["L2"])
                 ),
