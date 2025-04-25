@@ -346,13 +346,14 @@ class CameraWidget(QWidget):
 
     @Slot()
     def capture(self):
+        if not self._photosphere_on:
+            return
         frame = self._stream.frame
         if frame is None:
             return
-        if self._photosphere_on:
-            self._pano_cap_counter += 1
-            self._toolbar_buttons['pano'].setText(f'{self._pano_cap_counter}')
-
+        self._pano_cap_counter += 1
+        self._toolbar_buttons['pano'].setText(f'{self._pano_cap_counter}')
+        
         q_image = (
             QImage(
                 frame.data,
@@ -363,9 +364,8 @@ class CameraWidget(QWidget):
                 )
             .mirrored(horizontally=self._mirror_h, vertically=self._mirror_v)
         )
-        t = Thread(target=q_image.save, daemon=True, args=(str(PANO_SAVE / f'Photosphere {time.time_ns()}.png'),))
-        t.start()
-
+        q_image.save(str(PANO_SAVE / f'Photosphere {time.time_ns()}.png'))
+        
     def update(self):
         # Set frame
         frame_pixmap = self._pixmap_from_stream()

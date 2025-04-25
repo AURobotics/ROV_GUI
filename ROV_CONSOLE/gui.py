@@ -213,6 +213,8 @@ class MainWindow(QMainWindow):
 
         self.comms_man = CommunicationManager(esp=self.esp, controller=self.controller)
         self.controller.register_listener(self.main_camera_widget.controller_listener, 'CROSS')
+        self.controller.register_listener(self.left_camera_widget.controller_listener, 'CROSS')
+        self.controller.register_listener(self.right_camera_widget.controller_listener, 'CROSS')
 
         grid = QGridLayout()
 

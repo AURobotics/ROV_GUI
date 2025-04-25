@@ -49,7 +49,11 @@ class ESP32:
             self._serial.close()
             if self._serial.port in self.available_ports:
                 # Try to revive connection
-                self._serial.open()
+                try:
+                    self._serial.open()
+                except Exception as e:
+                    print(e)
+                    self.disconnect()
             else:
                 # Forget connection
                 self._serial.port = None
