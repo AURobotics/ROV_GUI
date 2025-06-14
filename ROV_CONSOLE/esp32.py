@@ -12,6 +12,7 @@ class ESP32:
     _port_over_rfc: bool
 
     def __init__(self, baudrate: int = 115200):
+        self._connection_in_progress = False
         self._baudrate = baudrate
         self._serial = serial.Serial(port=None, baudrate=baudrate)
         self._resetting = False
@@ -48,7 +49,11 @@ class ESP32:
             self._serial.close()
             if self._serial.port in self.available_ports:
                 # Try to revive connection
-                self._serial.open()
+                try:
+                    self._serial.open()
+                except Exception as e:
+                    print(e)
+                    self.disconnect()
             else:
                 # Forget connection
                 self._serial.port = None
@@ -75,32 +80,58 @@ class ESP32:
 
     def connect(self, port: str) -> None:
         self._serial.close()
-        if "rfc2217://" in port and not self._port_over_rfc:
-            print("Ports over RFC is not fully supported, disconnects will not be detected!", file=stderr)
-            self._serial = serial.serial_for_url(port, baudrate=self._baudrate)
-            self._port_over_rfc = True
+        if self._connection_in_progress:
             return
-        if "rfc2217://" not in port and self._port_over_rfc:
-            self._serial = serial.Serial(port=port, baudrate=self._baudrate)
-            self._port_over_rfc = False
-            return
-        try:
-            self._serial.port = port
-            self._serial.open()
-        except serial.SerialException:
-            self._serial.port = None
+        self._connection_in_progress = True
+
+        def _actual_connect() -> None:
+            try:
+                if "rfc2217://" in port and not self._port_over_rfc:
+                    print("Ports over RFC is not fully supported, disconnects will not be detected!", file=stderr)
+                    self._serial = serial.serial_for_url(port, baudrate=self._baudrate)
+                    self._port_over_rfc = True
+                    return
+                if "rfc2217://" not in port and self._port_over_rfc:
+                    self._serial = serial.Serial(port=port, baudrate=self._baudrate)
+                    self._port_over_rfc = False
+                    return
+                self._serial.port = port
+                self._serial.open()
+            except Exception as e:
+                print(e)
+                self._serial.port = None
+            finally:
+                self._connection_in_progress = False
+
+        connection_thread = threading.Thread(target=_actual_connect)
+        connection_thread.start()
 
     def send(self, buffer: bytes) -> None:
-        if self.connected:
-            self._serial.write(buffer)
+        try:
+            if self.connected:
+                self._serial.write(buffer)
+        except Exception as e:
+            print(e, file=stderr)
+            self.disconnect()
+            return
 
     @property
     def incoming(self):
-        return self._serial.in_waiting
+        try:
+            return self._serial.in_waiting
+        except Exception as e:
+            print(e)
+            self.disconnect()
+            return None
 
     @property
     def next_line(self):
-        return self._serial.readline().decode().rstrip()
+        try:
+            return self._serial.readline().decode().rstrip()
+        except Exception as e:
+            print(e)
+            self.disconnect()
+            return None
 
     def __del__(self):
         self._serial.close()

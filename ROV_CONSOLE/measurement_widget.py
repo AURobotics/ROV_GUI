@@ -12,15 +12,16 @@ from PySide6.QtWidgets import (
     QLabel,
     QWidget,
     QInputDialog,
-    QLineEdit,
-    )
+    QLineEdit, )
 
+from decimal import setcontext, Context, Decimal
+setcontext(Context(prec=34))
 
 class MeasurementWindow(QWidget):
     _ref_p1: tuple[int, int] | None  # Reference point 1: (x,y) pixels on pixmap
     _ref_p2: tuple[int, int] | None  # Reference point 1: (x,y) pixels on pixmap
-    _ref_length: float  # Real life distance between 2 reference points
-    _ref_pixel_length: int  # Distance between the 2 reference points in pixels on the pixmap
+    _ref_length: Decimal  # Real life distance between 2 reference points
+    _ref_pixel_length: Decimal  # Distance between the 2 reference points in pixels on the pixmap
     _temp_query_point: tuple[int, int] | None  # Holder for the first point when inputting 2 non-reference points
 
     _canvas: QLabel
@@ -42,9 +43,8 @@ class MeasurementWindow(QWidget):
 
         self._ref_p1 = None
         self._ref_p2 = None
-        self._ref_length = 0
-        self._ref_pixel_length = 0
-
+        self._ref_length = Decimal(0)
+        self._ref_pixel_length = Decimal(0)
         self._temp_query_point = None
 
     def mousePressEvent(self, event):
@@ -113,7 +113,7 @@ class MeasurementWindow(QWidget):
         font = QFont()
         font.setPixelSize(font_pixel_size)
         painter.setFont(font)
-        distance = (sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) * self._ref_length / self._ref_pixel_length)
+        distance = Decimal(Decimal(sqrt(Decimal(x2 - x1) ** Decimal(2) + Decimal(y2 - y1) ** Decimal(2))) * self._ref_length / self._ref_pixel_length)
         distance_text = f'{distance:.1f}m'
         text_width = QFontMetrics(font).tightBoundingRect(distance_text).width()
         painter.save()
@@ -145,10 +145,10 @@ class MeasurementWindow(QWidget):
         if not ok or float(length) == 0:
             self._ref_p2 = None
             return
-        self._ref_length = float(length)
+        self._ref_length = Decimal(length)
         x1, y1 = self._ref_p1
         x2, y2 = self._ref_p2
-        self._ref_pixel_length = int(sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2))
+        self._ref_pixel_length = Decimal(sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2))
         self._draw_labeled_line(self._ref_p1, self._ref_p2, 12)
 
     def resizeEvent(self, event):

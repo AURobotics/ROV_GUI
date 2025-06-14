@@ -1,16 +1,29 @@
 import json
 
-from schema import Schema, Optional, Or
+from schema import Schema, Optional, Or, And
 
-from ROV_CONSOLE.constants import CONFIG_FILE
+from ROV_CONSOLE.paths import CONFIG_FILE
+
+_TASK_TREE = Schema({
+    'name':            And(str, len),
+    Optional('tasks'): [Or(
+        And(str, len),
+        lambda task: _TASK_TREE.validate(task)
+        )],
+    })
+
+_CAMERA = Schema({
+    'descriptor':       Or(None, And(str, len), int),
+    'initial_rotation': Or(None, int)
+    })
 
 CONFIG_SCHEMA = Schema(
     {
-        Optional('tasks'):        list[str],
-        Optional('main_camera'):  Or(None, str, int),
-        Optional('left_camera'):  Or(None, str, int),
-        Optional('right_camera'): Or(None, str, int),
-        Optional('com_port'):     Or(None, str),
+        Optional('tasks'):        [Or(And(str, len), _TASK_TREE)],
+        Optional('main_camera'):  _CAMERA,
+        Optional('left_camera'):  _CAMERA,
+        Optional('right_camera'): _CAMERA,
+        Optional('com_port'):     Or(None, And(str, len)),
         }
     )
 

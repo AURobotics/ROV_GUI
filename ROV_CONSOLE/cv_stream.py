@@ -14,7 +14,7 @@ import cv2
 import requests
 from cv2_enumerate_cameras import enumerate_cameras
 
-from .constants import NOVIDEO_PICTURE_PATH
+from ROV_CONSOLE.paths import CAMERA_ICONS
 
 
 class ConnectionStatus(Enum):
@@ -52,7 +52,7 @@ _ENUM_API = _ENUMERATION_APIS[os_name]
 
 
 class VideoStream:
-    EMPTY_FRAME = cv2.imread(NOVIDEO_PICTURE_PATH)
+    EMPTY_FRAME = cv2.imread(CAMERA_ICONS / 'novideo.png')
 
     _cap: cv2.VideoCapture
     _connection_status: ConnectionStatus
@@ -311,7 +311,9 @@ class VideoStream:
                     ok, f = self._cap.read()
                     if not self._cap.isOpened() or not ok:
                         self._connection_status = ConnectionStatus.DISCONNECTED
+                        desc = self._cap_meta['descriptor']
                         self.__class__._enqueue_connection(self, None, DisconnectReason.RESOURCE_BUSY)
+                        self.__class__._enqueue_connection(self, desc)
                         self._frame = None
                         continue
                     self._frame = f

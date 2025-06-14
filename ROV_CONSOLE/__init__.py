@@ -1,9 +1,20 @@
+from sys import argv, platform, exit
+
+from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication
-import sys
+
 from .gui import MainWindow
+from .paths import APP_ICON
+
 
 def main():
-    app = QApplication(sys.argv)
+    app = QApplication(argv)
+    QCoreApplication.setApplicationName('AU Robotics - Console')
+    QCoreApplication.setOrganizationName("AURobotics")
+    if platform.startswith('win'):
+        from ctypes import windll
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            'AURobotics.Console')
     window = MainWindow()
     ret = app.exec()
-    sys.exit(ret)
+    exit(ret)
