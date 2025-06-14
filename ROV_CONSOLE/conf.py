@@ -31,9 +31,9 @@ CONFIG_SCHEMA = Schema(
 class Config:
     _DEFAULTS = {
         'tasks':        ['Task 1'],
-        'main_camera':  0,
-        'left_camera':  0,
-        'right_camera': 0,
+        'main_camera':  {'descriptor': 0, 'initial_rotation': 0},
+        'left_camera':  {'descriptor': 0, 'initial_rotation': 0},
+        'right_camera': {'descriptor': 0, 'initial_rotation': 0},
         'com_port':     None,
         }
 
