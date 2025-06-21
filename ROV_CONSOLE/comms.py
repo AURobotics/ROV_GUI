@@ -137,6 +137,8 @@ class CommunicationManager:
         # Touchpad Click - LED: 0000 0 LED 0      0
         # L1, R1 - Valves:      0000 0 0   VALVE1 VALVE2
         led_and_valves = toggles['L1'] * 4 + toggles['R1'] * 2 + toggles['TOUCHPAD']
+        if bindings['CIRCLE']:
+            led_and_valves |= 1  # Circle button inverts current LED state
 
         payload.append(led_and_valves)
 
